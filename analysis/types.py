@@ -56,9 +56,10 @@ class RoundsMetric:
 
 @dataclass(frozen=True)
 class RedirectMetric:
-    """One row of the redirect-rate table.
+    """One row of a redirect-rate table (all-chat or intent-only variant).
 
-    Four dimensions, four rows total.
+    numerator  = distinct dimension values in redirect_attributed.
+    denominator = distinct dimension values in the corresponding chat subset.
     """
 
     dimension: str
@@ -68,11 +69,9 @@ class RedirectMetric:
     denominator_B: int
     rate_A: float
     rate_B: float
-    abs_diff: float  # rate_B - rate_A
+    abs_diff: float
     rel_lift_pct: float
     p_value: float
-    ci_low: float
-    ci_high: float
     directional_verdict: DirectionalVerdict
     significance_verdict: SignificanceVerdict
 

@@ -69,6 +69,15 @@ def two_proportion_z_test(
 
     is_proportion = 0.0 <= p1 <= 1.0 and 0.0 <= p2 <= 1.0
     if is_proportion:
+        p_pool = (num_a + num_b) / (den_a + den_b)
+        if p_pool == 0.0 or p_pool == 1.0:
+            # Zero variance: test is undefined (everyone or no one in numerator).
+            return StatResult(
+                p_value=float("nan"),
+                ci_low=float("nan"),
+                ci_high=float("nan"),
+                significance_verdict="not_significant",
+            )
         counts = np.array([num_a, num_b])
         nobs = np.array([den_a, den_b])
         try:

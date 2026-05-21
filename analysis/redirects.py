@@ -30,21 +30,27 @@ def _rel_lift_pct(value_a: float, value_b: float) -> float:
 
 
 def build_redirect_attributed(
-    chat_with_variant: pd.DataFrame, redirects: pd.DataFrame
+    chat_with_variant: pd.DataFrame,
+    redirects: pd.DataFrame,
+    intent_only: bool = False,
 ) -> pd.DataFrame:
-    """Inner-join INTENT chat rows to redirects on correlation_id == pre_redirect_id.
+    """Inner-join chat rows to redirects on (utid, correlation_id == pre_redirect_id).
 
-    SUGGESTIONS rows are excluded (per FR-009). Variant is inherited from the
-    chat side; the redirects.csv `dt` and `utid` columns are not used.
+    Args:
+        intent_only: if True, restrict chat side to CHAT_TYPE_INTENT_RECOGNITION rows only.
     """
-    intent = chat_with_variant[
-        chat_with_variant["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"
-    ]
-    redirect_ids = redirects[["pre_redirect_id"]].drop_duplicates()
-    attributed = intent.merge(
-        redirect_ids,
-        left_on="correlation_id",
-        right_on="pre_redirect_id",
+    chat = (
+        chat_with_variant[
+            chat_with_variant["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"
+        ]
+        if intent_only
+        else chat_with_variant
+    )
+    redirect_keys = redirects[["utid", "pre_redirect_id"]].drop_duplicates()
+    attributed = chat.merge(
+        redirect_keys,
+        left_on=["utid", "correlation_id"],
+        right_on=["utid", "pre_redirect_id"],
         how="inner",
     )
     return attributed[
@@ -52,9 +58,7 @@ def build_redirect_attributed(
     ]
 
 
-def _distinct_count_in_intent(
-    df: pd.DataFrame, dimension: str, variant: str
-) -> int:
+def _distinct_count(df: pd.DataFrame, dimension: str, variant: str) -> int:
     sub = df[df["variant"] == variant]
     if dimension == "chat_session_id":
         sub = sub[sub[dimension].notna() & (sub[dimension] != "")]
@@ -62,22 +66,22 @@ def _distinct_count_in_intent(
 
 
 def compute_redirect_metrics(
-    chat_with_variant: pd.DataFrame, redirect_attributed: pd.DataFrame
+    numerator_df: pd.DataFrame,
+    denominator_df: pd.DataFrame,
 ) -> list[RedirectMetric]:
     """Four RedirectMetric rows, one per dimension.
 
-    Numerator: distinct dimension values that appear in `redirect_attributed`.
-    Denominator: distinct dimension values in INTENT-only `chat_with_variant`.
+    Args:
+        numerator_df  : redirect_attributed (rows that matched a redirect).
+        denominator_df: the chat subset that defines the population
+                        (all chat rows, or INTENT-only rows).
     """
-    intent = chat_with_variant[
-        chat_with_variant["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"
-    ]
     out: list[RedirectMetric] = []
     for dim in DIMENSIONS:
-        num_a = _distinct_count_in_intent(redirect_attributed, dim, "A")
-        num_b = _distinct_count_in_intent(redirect_attributed, dim, "B")
-        den_a = _distinct_count_in_intent(intent, dim, "A")
-        den_b = _distinct_count_in_intent(intent, dim, "B")
+        num_a = _distinct_count(numerator_df, dim, "A")
+        num_b = _distinct_count(numerator_df, dim, "B")
+        den_a = _distinct_count(denominator_df, dim, "A")
+        den_b = _distinct_count(denominator_df, dim, "B")
         rate_a = num_a / den_a if den_a > 0 else float("nan")
         rate_b = num_b / den_b if den_b > 0 else float("nan")
         abs_diff = rate_b - rate_a if not (math.isnan(rate_a) or math.isnan(rate_b)) else float("nan")
@@ -95,8 +99,6 @@ def compute_redirect_metrics(
                 abs_diff=abs_diff,
                 rel_lift_pct=rel_lift,
                 p_value=stat.p_value,
-                ci_low=stat.ci_low,
-                ci_high=stat.ci_high,
                 directional_verdict=directional_verdict(rel_lift),
                 significance_verdict=stat.significance_verdict,
             )
@@ -108,8 +110,8 @@ def compute_redirect_funnel_metric(
     redirect_attributed: pd.DataFrame, variant_population: dict[str, int]
 ) -> RedirectFunnelMetric:
     """Per-FR-013: distinct utids with redirect / variant_population (chat users)."""
-    num_a = _distinct_count_in_intent(redirect_attributed, "utid", "A")
-    num_b = _distinct_count_in_intent(redirect_attributed, "utid", "B")
+    num_a = _distinct_count(redirect_attributed, "utid", "A")
+    num_b = _distinct_count(redirect_attributed, "utid", "B")
     den_a = variant_population["A"]
     den_b = variant_population["B"]
     rate_a = num_a / den_a if den_a > 0 else float("nan")

@@ -31,8 +31,8 @@ from analysis.render import (
     render_report,
 )
 
-DEFAULT_DATA_DIR = "Chat-box-auto-open/data"
-DEFAULT_OUTPUT = "Chat-box-auto-open/output/report.html"
+DEFAULT_DATA_DIR = "data/chat-box-auto-open"
+DEFAULT_OUTPUT = "output/report.html"
 
 
 def _now() -> float:
@@ -116,21 +116,24 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         t0 = _now()
-        attributed = build_redirect_attributed(chat, bundle.redirects)
-        red_metrics = compute_redirect_metrics(chat, attributed)
-        funnel = compute_redirect_funnel_metric(attributed, pop)
-        red_trends = compute_redirect_trends(chat, attributed)
+        attributed_all = build_redirect_attributed(chat, bundle.redirects, intent_only=False)
+        attributed_intent = build_redirect_attributed(chat, bundle.redirects, intent_only=True)
+        intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+        red_metrics_all = compute_redirect_metrics(attributed_all, chat)
+        red_metrics_intent = compute_redirect_metrics(attributed_intent, intent_chat)
+        funnel = compute_redirect_funnel_metric(attributed_all, pop)
+        red_trends = compute_redirect_trends(chat, attributed_intent)
         _stage(
             args.verbose,
             "redirect",
-            f"{len(red_metrics)} redirect metrics + funnel + 2 trend tables ({len(attributed):,} attributed redirects)",
+            f"all={len(attributed_all):,} / intent={len(attributed_intent):,} attributed redirects",
             t0,
         )
 
         t0 = _now()
         exec_summary = build_exec_summary(eng_metrics, funnel)
         # 8 engagement + 4 redirect + 1 funnel + 1 rounds = 14 tests in practice.
-        total_tests = len(eng_metrics) + len(red_metrics) + 1 + 1
+        total_tests = len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent) + 1 + 1
         ctx = ReportContext(
             generated_at=make_generated_at(),
             date_range=(bundle.ots_chat["dt"].min(), bundle.ots_chat["dt"].max()),
@@ -142,7 +145,8 @@ def main(argv: list[str] | None = None) -> int:
             expected_false_positives=total_tests * args.alpha,
             engagement_metrics=eng_metrics,
             rounds_metric=rounds_metric,
-            redirect_metrics=red_metrics,
+            redirect_metrics_all=red_metrics_all,
+            redirect_metrics_intent=red_metrics_intent,
             redirect_funnel_metric=funnel,
             engagement_trends=eng_trends,
             redirect_trends=red_trends,

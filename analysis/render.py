@@ -286,7 +286,8 @@ class ReportContext:
 
     engagement_metrics: list[EngagementMetric]
     rounds_metric: RoundsMetric
-    redirect_metrics: list[RedirectMetric]
+    redirect_metrics_all: list[RedirectMetric]
+    redirect_metrics_intent: list[RedirectMetric]
     redirect_funnel_metric: RedirectFunnelMetric
 
     engagement_trends: tuple[DailyTrend, DailyTrend]
@@ -320,13 +321,21 @@ def render_report(context: ReportContext, output_path: Path) -> int:
     }
     rounds_chart_html = build_rounds_chart(context.rounds_metric)
     redirect_charts = {
-        f"redirect__{m.dimension}": build_static_chart_redirect(
+        f"redirect_all__{m.dimension}": build_static_chart_redirect(
             m,
-            label=f"Redirect rate per {m.dimension}",
-            div_id=f"chart-red-{m.dimension}",
+            label=f"Redirect rate (all chat) per {m.dimension}",
+            div_id=f"chart-red-all-{m.dimension}",
         )
-        for m in context.redirect_metrics
+        for m in context.redirect_metrics_all
     }
+    redirect_charts.update({
+        f"redirect_intent__{m.dimension}": build_static_chart_redirect(
+            m,
+            label=f"Redirect rate (INTENT only) per {m.dimension}",
+            div_id=f"chart-red-intent-{m.dimension}",
+        )
+        for m in context.redirect_metrics_intent
+    })
     redirect_charts["redirect_funnel"] = build_static_chart_redirect(
         context.redirect_funnel_metric,
         label="Funnel rate (utids with redirect / variant_population)",

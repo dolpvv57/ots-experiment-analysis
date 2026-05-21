@@ -46,16 +46,20 @@ def compute_engagement_metrics(
     chat_with_variant: pd.DataFrame,
     variant_population: dict[str, int],
 ) -> list[EngagementMetric]:
-    """Compute the 8 EngagementMetric rows."""
-    den_a = variant_population["A"]
-    den_b = variant_population["B"]
+    """Compute the 8 EngagementMetric rows.
 
+    Rate denominator is the per-dimension distinct count across ALL chat
+    (SUGGESTIONS + INTENT), per variant — i.e. each rate answers "what fraction
+    of <dimension> values had at least one row of this chat_type?"
+    """
     out: list[EngagementMetric] = []
     for chat_type in CHAT_TYPES:
         sub = chat_with_variant[chat_with_variant["chat_type"] == chat_type]
         for dim in DIMENSIONS:
             count_a = _distinct_count(sub, dim, "A")
             count_b = _distinct_count(sub, dim, "B")
+            den_a = _distinct_count(chat_with_variant, dim, "A")
+            den_b = _distinct_count(chat_with_variant, dim, "B")
             value_a = count_a / den_a if den_a > 0 else float("nan")
             value_b = count_b / den_b if den_b > 0 else float("nan")
             abs_diff = value_b - value_a

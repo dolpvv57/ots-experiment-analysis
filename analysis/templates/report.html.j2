@@ -60,7 +60,7 @@
 
 {# ============== EXECUTIVE SUMMARY ============== #}
 <section id="exec-summary">
-<h2>Executive Summary</h2>
+<h2>Summary</h2>
 <p><strong>Recommendation:</strong>
   {% if ctx.exec_summary.recommendation == "ship" %}
     <span class="verdict verdict-ship">SHIP</span>
@@ -78,20 +78,22 @@
 {# ============== DATA OVERVIEW ============== #}
 <section id="data-overview">
 <h2>Data Overview</h2>
-<table>
+<div style="display:flex; gap:32px; flex-wrap:wrap;">
+<table style="width:auto;">
   <thead><tr><th>File</th><th>Rows loaded</th></tr></thead>
   <tbody>
     <tr><td>ots_chat.csv</td><td>{{ "{:,}".format(ctx.chat_rows) }}</td></tr>
     <tr><td>redirects.csv</td><td>{{ "{:,}".format(ctx.redirect_rows) }}</td></tr>
   </tbody>
 </table>
-<table>
+<table style="width:auto;">
   <thead><tr><th>Variant</th><th>Distinct utids in ots_chat</th></tr></thead>
   <tbody>
     <tr><td>A (control)</td><td>{{ "{:,}".format(ctx.variant_population.A) }}</td></tr>
     <tr><td>B (auto-open)</td><td>{{ "{:,}".format(ctx.variant_population.B) }}</td></tr>
   </tbody>
 </table>
+</div>
 {% if ctx.excluded_utids_count > 0 %}
 <p class="muted">{{ ctx.excluded_utids_count }} utid(s) excluded due to in-file variant conflict.</p>
 {% endif %}
@@ -100,49 +102,53 @@
 {# ============== ENGAGEMENT ============== #}
 <section id="engagement">
 <h2>Engagement Analysis</h2>
-<p class="muted">Engagement metrics: 2 chat_types × 4 aggregation dimensions = 8 metrics. Rate = distinct dimension count / variant_population.</p>
 
-<table>
+{# Build lookup: dimension → INTENT metric, dimension → SUGGESTIONS metric #}
+{% set _intent_map = {} %}
+{% set _suggest_map = {} %}
+{% for m in ctx.engagement_metrics %}
+  {% if "INTENT" in m.chat_type %}{% set _ = _intent_map.update({m.dimension: m}) %}
+  {% else %}{% set _ = _suggest_map.update({m.dimension: m}) %}{% endif %}
+{% endfor %}
+
+<table style="width:auto">
   <thead>
     <tr>
-      <th>Chat type</th><th>Dimension</th>
+      <th>Dimension</th>
       <th>A count</th><th>B count</th>
       <th>A rate</th><th>B rate</th>
-      <th>Δ rate</th><th>Rel. lift</th>
-      <th>p-value</th><th>95% CI for Δ</th>
+      <th>Rel. lift</th>
+      <th>p-value</th>
       <th>Verdict</th>
     </tr>
   </thead>
   <tbody>
-    {% for m in ctx.engagement_metrics %}
-    <tr {% if m.significance_verdict == "significant" and m.directional_verdict == "positive" %}class="sig-positive"{% elif m.significance_verdict == "significant" and m.directional_verdict == "negative" %}class="sig-negative"{% endif %}>
-      <td>{{ m.chat_type }}</td>
-      <td>{{ m.dimension }}</td>
-      <td>{{ "{:,}".format(m.count_A) }}</td>
-      <td>{{ "{:,}".format(m.count_B) }}</td>
-      <td>{{ m.value_A|fmt_num(4) }}</td>
-      <td>{{ m.value_B|fmt_num(4) }}</td>
-      <td>{{ m.abs_diff|fmt_num(4) }}</td>
-      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
-      <td>{{ m.p_value|fmt_p }}</td>
-      <td>[{{ m.ci_low|fmt_num(4) }}, {{ m.ci_high|fmt_num(4) }}]</td>
-      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    {% for dim in ["utid", "chat_session_id", "request_id", "correlation_id"] %}
+    {% set intent = _intent_map[dim] %}
+    {% set blank = (dim == "chat_session_id") %}
+    <tr>
+      <td>{{ dim }}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(intent.count_A) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(intent.count_B) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ intent.value_A|fmt_pct }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ intent.value_B|fmt_pct }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ intent.rel_lift_pct|fmt_lift }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ intent.p_value|fmt_p }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ intent.directional_verdict }} / {{ intent.significance_verdict.replace('_', ' ') }}{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
-
-<div class="grid-2">
-  {% for m in ctx.engagement_metrics %}
-    <div class="chart">{{ engagement_charts[m.chat_type ~ '__' ~ m.dimension]|safe }}</div>
-  {% endfor %}
-</div>
+<dl class="muted" style="margin:8px 0 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 12px; font-size:13px;">
+  <dt><strong>Rate</strong></dt><dd>INTENT_RECOGNITION distinct count / total chat (SUGGESTIONS + INTENT) distinct count, per dimension.</dd>
+  <dt><strong>p-value</strong></dt><dd>Two-proportion z-test (α = 0.05): p &lt; 0.05 indicates that the A/B difference is unlikely due to random fluctuation.</dd>
+</dl>
 
 <h3>Rounds per session (Welch's t-test)</h3>
-<table>
+<table style="width:auto">
   <thead>
     <tr>
-      <th>Variant</th><th>n sessions</th><th>Mean</th><th>Median</th>
+      <th>Variant</th><th>Sessions</th><th>Rounds (Mean)</th><th>Rounds (Median)</th>
     </tr>
   </thead>
   <tbody>
@@ -153,14 +159,12 @@
 <p>Δ mean = {{ ctx.rounds_metric.abs_diff_mean|fmt_num(3) }} ·
    relative lift = {{ ctx.rounds_metric.rel_lift_mean_pct|fmt_lift }} ·
    p = {{ ctx.rounds_metric.p_value|fmt_p }} ·
-   95% CI = [{{ ctx.rounds_metric.ci_low|fmt_num(3) }}, {{ ctx.rounds_metric.ci_high|fmt_num(3) }}] ·
    {{ ctx.rounds_metric.directional_verdict }} / {{ ctx.rounds_metric.significance_verdict.replace('_', ' ') }}</p>
-<div class="chart">{{ rounds_chart_html|safe }}</div>
 
-<h3>Daily trend — engagement absolute (INTENT_RECOGNITION volume)</h3>
+<h3>Daily trend: engagement absolute (INTENT_RECOGNITION volume)</h3>
 <div class="chart">{{ trend_charts["engagement_abs"]|safe }}</div>
 
-<h3>Daily trend — engagement ratio (INTENT_RECOGNITION ÷ SUGGESTIONS)</h3>
+<h3>Daily trend: engagement ratio (INTENT_RECOGNITION / SUGGESTIONS)</h3>
 <div class="chart">{{ trend_charts["engagement_ratio"]|safe }}</div>
 </section>
 
@@ -168,67 +172,83 @@
 <section id="redirect">
 <h2>Redirect Analysis</h2>
 <p class="muted">
-  Redirect rates are computed only over CHAT_TYPE_INTENT_RECOGNITION rows (FR-009).
-  Numerator: distinct dimension values that match a redirect via correlation_id ↔ pre_redirect_id.
-  Denominator: distinct dimension values in INTENT-only chat data.
+  Numerator: distinct dimension values matched to a redirect via (utid, correlation_id ↔ pre_redirect_id).<br>
+  p-value: two-proportion z-test (α = 0.05).
 </p>
 
-<table>
+{# ---- Part 1: All chat rows ---- #}
+<h3>Part 1: All chat rows (SUGGESTIONS + INTENT)</h3>
+<p class="muted">Denominator: distinct dimension values across all chat rows.</p>
+<table style="width:auto">
   <thead>
     <tr>
       <th>Dimension</th>
-      <th>A num</th><th>A den</th><th>A rate</th>
-      <th>B num</th><th>B den</th><th>B rate</th>
+      <th>A Num</th><th>B Num</th>
+      <th>A Den</th><th>B Den</th>
+      <th>A Rate</th><th>B Rate</th>
       <th>Δ (pp)</th><th>Rel. lift</th>
-      <th>p-value</th><th>95% CI for Δ</th>
-      <th>Verdict</th>
+      <th>p-value</th><th>Verdict</th>
     </tr>
   </thead>
   <tbody>
-    {% for m in ctx.redirect_metrics %}
-    <tr {% if m.significance_verdict == "significant" and m.directional_verdict == "positive" %}class="sig-positive"{% elif m.significance_verdict == "significant" and m.directional_verdict == "negative" %}class="sig-negative"{% endif %}>
+    {% for m in ctx.redirect_metrics_all %}
+    {% set blank = (m.dimension == "chat_session_id") %}
+    <tr>
+      <td>{{ m.dimension }}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(m.numerator_A) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(m.numerator_B) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(m.denominator_A) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ "{:,}".format(m.denominator_B) }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.rate_A|fmt_pct }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.rate_B|fmt_pct }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.abs_diff|fmt_pp }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.rel_lift_pct|fmt_lift }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.p_value|fmt_p }}{% endif %}</td>
+      <td>{% if blank %}\{% else %}{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<p class="muted" style="font-size:13px;">Leave chat_session_id blank: the SUGGESTIONS row does not have a chat_session_id, and its denominator is equivalent to Part 2, so it is not displayed repeatedly.</p>
+
+{# ---- Part 2: INTENT rows only ---- #}
+<h3>Part 2: INTENT rows only</h3>
+<p class="muted">Denominator: distinct dimension values among CHAT_TYPE_INTENT_RECOGNITION rows only.</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>A Num</th><th>B Num</th>
+      <th>A Den</th><th>B Den</th>
+      <th>A Rate</th><th>B Rate</th>
+      <th>Δ (pp)</th><th>Rel. lift</th>
+      <th>p-value</th><th>Verdict</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.redirect_metrics_intent %}
+    <tr>
       <td>{{ m.dimension }}</td>
       <td>{{ "{:,}".format(m.numerator_A) }}</td>
-      <td>{{ "{:,}".format(m.denominator_A) }}</td>
-      <td>{{ m.rate_A|fmt_pct }}</td>
       <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
       <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
       <td>{{ m.rate_B|fmt_pct }}</td>
       <td>{{ m.abs_diff|fmt_pp }}</td>
       <td>{{ m.rel_lift_pct|fmt_lift }}</td>
       <td>{{ m.p_value|fmt_p }}</td>
-      <td>[{{ m.ci_low|fmt_pp }}, {{ m.ci_high|fmt_pp }}]</td>
       <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<h3>Funnel rate — redirect rate over all chat users (FR-013)</h3>
-<table>
-  <thead><tr><th>Variant</th><th>Numerator</th><th>Denominator (utids in ots_chat)</th><th>Rate</th></tr></thead>
-  <tbody>
-    <tr><td>A</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.numerator_A) }}</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.denominator_A) }}</td><td>{{ ctx.redirect_funnel_metric.rate_A|fmt_pct }}</td></tr>
-    <tr><td>B</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.numerator_B) }}</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.denominator_B) }}</td><td>{{ ctx.redirect_funnel_metric.rate_B|fmt_pct }}</td></tr>
-  </tbody>
-</table>
-<p>Δ = {{ ctx.redirect_funnel_metric.abs_diff|fmt_pp }} ·
-   relative lift = {{ ctx.redirect_funnel_metric.rel_lift_pct|fmt_lift }} ·
-   p = {{ ctx.redirect_funnel_metric.p_value|fmt_p }} ·
-   95% CI = [{{ ctx.redirect_funnel_metric.ci_low|fmt_pp }}, {{ ctx.redirect_funnel_metric.ci_high|fmt_pp }}] ·
-   {{ ctx.redirect_funnel_metric.directional_verdict }} / {{ ctx.redirect_funnel_metric.significance_verdict.replace('_', ' ') }}</p>
 
-<div class="grid-2">
-  {% for m in ctx.redirect_metrics %}
-    <div class="chart">{{ redirect_charts['redirect__' ~ m.dimension]|safe }}</div>
-  {% endfor %}
-  <div class="chart">{{ redirect_charts["redirect_funnel"]|safe }}</div>
-</div>
-
-<h3>Daily trend — redirect absolute</h3>
+<h3>Daily trend: redirect absolute</h3>
 <div class="chart">{{ trend_charts["redirect_abs"]|safe }}</div>
 
-<h3>Daily trend — redirect ratio (redirect ÷ INTENT_RECOGNITION)</h3>
+<h3>Daily trend: redirect ratio (redirect ÷ INTENT_RECOGNITION)</h3>
 <div class="chart">{{ trend_charts["redirect_ratio"]|safe }}</div>
 </section>
 
@@ -238,13 +258,11 @@
 
 <h3>Methodology</h3>
 <ul>
-  <li><strong>Engagement rate:</strong> distinct dimension count / variant_population (utids in ots_chat).</li>
+  <li><strong>Engagement rate:</strong> per-dimension distinct INTENT count / per-dimension distinct count across all chat (SUGGESTIONS + INTENT). E.g. for the request_id dimension, the rate is the share of all chat request_ids that triggered an INTENT_RECOGNITION row.</li>
   <li><strong>Engagement ratio (trend chart 2):</strong> at the utid panel — distinct INTENT utids / distinct SUGGESTIONS utids per (dt, variant). At the chat_session_id panel, since SUGGESTIONS rows have empty session_id, the denominator is the SUGGESTIONS row count per (dt, variant) — interpretable as "INTENT sessions started per suggestion render".</li>
-  <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its correlation_id appears in redirects.pre_redirect_id (FR-010). Suggestions are excluded (FR-009).</li>
-  <li><strong>Funnel rate:</strong> distinct utids with ≥1 attributed redirect ÷ variant_population (= distinct utids in ots_chat per variant). FR-013.</li>
+  <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its correlation_id appears in redirects.pre_redirect_id. Suggestions are excluded.</li>
   <li><strong>Statistical tests:</strong> two-proportion z-test for rate metrics; Welch's t-test for the rounds mean. α = {{ ctx.alpha }}. Two-sided.</li>
-  <li><strong>Directional verdict:</strong> a relative lift greater than +{{ ctx.flat_threshold_pct }}% is "positive"; less than −{{ ctx.flat_threshold_pct }}% is "negative"; otherwise "flat" (FR-007).</li>
-  <li><strong>Significance verdict:</strong> "significant" iff p &lt; {{ ctx.alpha }} (FR-SIG-004).</li>
+  <li><strong>Significance verdict:</strong> "significant" iff p &lt; {{ ctx.alpha }}.</li>
 </ul>
 
 <h3>Multiple comparisons</h3>
@@ -252,7 +270,7 @@
   This report runs <strong>{{ ctx.total_tests }}</strong> two-sided tests in total at α = {{ ctx.alpha }}.
   At this multiplicity, the expected number of false positives under the null hypothesis is approximately
   <strong>{{ "%.2f"|format(ctx.expected_false_positives) }}</strong>. No multiple-comparisons correction
-  (Bonferroni / Benjamini-Hochberg) is applied (FR-SIG-006). Treat borderline-significant findings
+  (Bonferroni / Benjamini-Hochberg) is applied. Treat borderline-significant findings
   with this in mind.
 </p>
 
