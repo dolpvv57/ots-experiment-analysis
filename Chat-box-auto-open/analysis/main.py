@@ -1,0 +1,176 @@
+"""CLI entry point: end-to-end orchestration of the analysis pipeline."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+from analysis import stats as stats_module
+from analysis.engagement import (
+    compute_engagement_metrics,
+    compute_engagement_trends,
+    compute_rounds_metric,
+)
+from analysis.load import (
+    build_variant_lookup,
+    compute_variant_population,
+    load_data,
+)
+from analysis.redirects import (
+    build_redirect_attributed,
+    compute_redirect_funnel_metric,
+    compute_redirect_metrics,
+    compute_redirect_trends,
+)
+from analysis.render import (
+    ReportContext,
+    build_exec_summary,
+    make_generated_at,
+    render_report,
+)
+
+DEFAULT_DATA_DIR = "Chat-box-auto-open/data"
+DEFAULT_OUTPUT = "specs/001-chat-box-auto-open-analysis/report.html"
+
+
+def _now() -> float:
+    return time.perf_counter()
+
+
+def _stage(verbose: bool, label: str, message: str, t0: float) -> None:
+    if verbose:
+        elapsed = _now() - t0
+        print(f"[{label}] {message} ({elapsed:.1f}s)", file=sys.stderr)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="analysis.main",
+        description="Generate the Chat-box-auto-open A/B analysis HTML report.",
+    )
+    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR)
+    parser.add_argument("--output", default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--flat-threshold",
+        type=float,
+        default=stats_module.FLAT_THRESHOLD_PCT,
+        help="Relative lift |x|%% under this is 'flat' (per FR-007). Default 2.0.",
+    )
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=stats_module.ALPHA,
+        help="Significance level (per FR-SIG-004). Default 0.05.",
+    )
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args(argv)
+
+    # Allow runtime override of stats module constants without complicating signatures.
+    stats_module.ALPHA = args.alpha
+    stats_module.FLAT_THRESHOLD_PCT = args.flat_threshold
+
+    data_dir = Path(args.data_dir)
+    output_path = Path(args.output)
+
+    try:
+        t0 = _now()
+        bundle = load_data(data_dir)
+        chat_rows = len(bundle.ots_chat)
+        redirect_rows = len(bundle.redirects)
+        _stage(
+            args.verbose,
+            "load",
+            f"{chat_rows + redirect_rows:,} rows in 2 files",
+            t0,
+        )
+
+        t0 = _now()
+        _, excluded = build_variant_lookup(bundle.ots_chat)
+        pop = compute_variant_population(bundle.ots_chat, excluded)
+        chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+        _stage(
+            args.verbose,
+            "validate",
+            f"{len(excluded)} utids excluded for in-file variant conflict",
+            t0,
+        )
+
+        if pop["A"] == 0 or pop["B"] == 0:
+            print(
+                f"FATAL: empty variant population (A={pop['A']}, B={pop['B']}); cannot compare.",
+                file=sys.stderr,
+            )
+            return 2
+
+        t0 = _now()
+        eng_metrics = compute_engagement_metrics(chat, pop)
+        rounds_metric = compute_rounds_metric(chat)
+        eng_trends = compute_engagement_trends(chat)
+        _stage(
+            args.verbose,
+            "engage",
+            f"{len(eng_metrics)} engagement metrics + rounds metric + 2 trend tables",
+            t0,
+        )
+
+        t0 = _now()
+        attributed = build_redirect_attributed(chat, bundle.redirects)
+        red_metrics = compute_redirect_metrics(chat, attributed)
+        funnel = compute_redirect_funnel_metric(attributed, pop)
+        red_trends = compute_redirect_trends(chat, attributed)
+        _stage(
+            args.verbose,
+            "redirect",
+            f"{len(red_metrics)} redirect metrics + funnel + 2 trend tables ({len(attributed):,} attributed redirects)",
+            t0,
+        )
+
+        t0 = _now()
+        exec_summary = build_exec_summary(eng_metrics, funnel)
+        # 8 engagement + 4 redirect + 1 funnel + 1 rounds = 14 tests in practice.
+        total_tests = len(eng_metrics) + len(red_metrics) + 1 + 1
+        ctx = ReportContext(
+            generated_at=make_generated_at(),
+            date_range=(bundle.ots_chat["dt"].min(), bundle.ots_chat["dt"].max()),
+            variant_population=pop,
+            excluded_utids_count=len(excluded),
+            flat_threshold_pct=args.flat_threshold,
+            alpha=args.alpha,
+            total_tests=total_tests,
+            expected_false_positives=total_tests * args.alpha,
+            engagement_metrics=eng_metrics,
+            rounds_metric=rounds_metric,
+            redirect_metrics=red_metrics,
+            redirect_funnel_metric=funnel,
+            engagement_trends=eng_trends,
+            redirect_trends=red_trends,
+            exec_summary=exec_summary,
+            chat_rows=chat_rows,
+            redirect_rows=redirect_rows,
+        )
+        size_bytes = render_report(ctx, output_path)
+        _stage(
+            args.verbose,
+            "render",
+            f"report.html written ({size_bytes / 1024 / 1024:.1f} MB) -> {output_path}",
+            t0,
+        )
+
+        if args.verbose:
+            print(f"[done] {output_path}", file=sys.stderr)
+        return 0
+
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    except Exception:  # pragma: no cover - top-level safety net
+        import traceback
+
+        traceback.print_exc(file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

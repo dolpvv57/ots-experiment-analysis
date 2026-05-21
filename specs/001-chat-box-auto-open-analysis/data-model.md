@@ -9,25 +9,9 @@ This document specifies the schemas of the input CSV files, the in-memory derive
 
 ## 1. Input CSV schemas
 
-All CSVs live under `Chat-box-auto-open/data/`. All are read-only. `ots_matched_hotels.csv` is intentionally NOT loaded by this analysis.
+Two CSVs are loaded from `Chat-box-auto-open/data/`. Both are read-only. `actions.csv` and `ots_matched_hotels.csv` are intentionally NOT loaded by this analysis (per Clarifications session 2026-05-21).
 
-### 1.1 `actions.csv`
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `dt` | date (YYYY-MM-DD) | Day of the action |
-| `utid` | string (UUID) | User id |
-| `variant` | enum {`A`, `B`} | Experiment assignment |
-| `action_type` | enum (6 values) | `CHAT_BOX_ENTRY_CLICK`, `CHAT_BOX_ENTRY_LOADED`, `DAY_VIEW_SORT_USED`, `DAY_VIEW_FILTERS_USED`, `MAP_MOVING_DAY_VIEW`, `MAP_HOTEL_MARKER_CLICK` |
-| `chat_box_entry_click` | JSON string or `null` | Populated only when `action_type = CHAT_BOX_ENTRY_CLICK`; contains `open_chat_box_area` |
-| `chat_box_entry_loaded` | JSON string or `null` | Populated only when `action_type = CHAT_BOX_ENTRY_LOADED`; contains `loaded_area`, `correlation_id` |
-| `day_view_sort_used` | JSON string or `null` | Sort breakdown, not used in v1 |
-| `day_view_filters_used` | JSON string or `null` | Filter breakdown, not used in v1 |
-| `map_marker_clicked` | JSON string or `null` | Out of scope |
-
-**Used by analysis for**: deriving the population of variant A and variant B users (set of distinct `utid` per `variant`). Action-type breakdowns are NOT computed in v1.
-
-### 1.2 `ots_chat.csv`
+### 1.1 `ots_chat.csv`
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -40,9 +24,9 @@ All CSVs live under `Chat-box-auto-open/data/`. All are read-only. `ots_matched_
 | `correlation_id` | string (UUID) | Backend-request id; joins to `redirects.pre_redirect_id` |
 | `variant` | enum {`A`, `B`} | |
 
-**Used by analysis for**: all engagement metrics (Section 3) and as the left side of the redirect join (Section 4).
+**Used by analysis for**: all engagement metrics (Section 3), all variant labels (it is the only source of truth for `utid → variant`), and as the left side of the redirect join (Section 4).
 
-### 1.3 `redirects.csv`
+### 1.2 `redirects.csv`
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -50,7 +34,7 @@ All CSVs live under `Chat-box-auto-open/data/`. All are read-only. `ots_matched_
 | `utid` | string (UUID) | User who clicked the partner link |
 | `pre_redirect_id` | string (UUID) | Equal to `ots_chat.correlation_id` of the chat row that triggered this redirect |
 
-**Note**: `redirects.csv` does NOT carry a `variant` column in some samples — the variant must be inferred via the `utid → variant` lookup built from the other tables (Section 2).
+**Note**: `redirects.csv` does NOT carry a `variant` column. Variant is inferred via the join to `ots_chat.csv` on `correlation_id == pre_redirect_id`.
 
 **Used by analysis for**: marking which `correlation_id`s in `ots_chat.csv` (filtered to `CHAT_TYPE_INTENT_RECOGNITION`) led to a partner redirect.
 
@@ -60,20 +44,15 @@ All CSVs live under `Chat-box-auto-open/data/`. All are read-only. `ots_matched_
 
 ### 2.1 `variant_lookup: pd.Series[utid → {A, B}]`
 
-Built by unioning `(utid, variant)` pairs from `actions`, `ots_chat`, and (if present) `redirects`, then collapsing to a single mapping. Conflicts are detected here and the affected utids are recorded in `excluded_utids`.
-
-**Validation rules** (from spec FR-003):
-
-- Each `utid` must map to exactly one variant.
-- Conflicting utids are excluded from all downstream comparison; they are reported in the Appendix.
+Built from `(utid, variant)` pairs in `ots_chat.csv` only. If a single `utid` appears with both `A` and `B` labels within `ots_chat`, those rows are reported as "in-file conflict" and dropped (per FR-003 as scoped to ots_chat-only).
 
 ### 2.2 `excluded_utids: set[str]`
 
-Set of utids excluded from comparative analysis due to variant conflict. Recorded in the Appendix per FR-019.
+Set of utids excluded from comparative analysis due to in-file variant conflict in `ots_chat.csv`. Expected to be empty or near-empty in practice. Recorded in the Appendix per FR-019.
 
 ### 2.3 `variant_population: dict[str, int]`
 
-`{ "A": <count of distinct utids assigned to A>, "B": <count of distinct utids assigned to B> }`. Used as the denominator for per-user rates (FR-005, FR-013).
+`{ "A": <count of distinct utids in ots_chat with variant=A>, "B": <count of distinct utids in ots_chat with variant=B> }`, after `excluded_utids` are removed. Used as the denominator for per-user rates (FR-005, FR-013). Per spec, this is "users who had at least one chat event of either type".
 
 ### 2.4 `chat_with_variant: pd.DataFrame`
 
@@ -85,7 +64,7 @@ Subset of `chat_with_variant` where `chat_type == "CHAT_TYPE_INTENT_RECOGNITION"
 
 ### 2.6 `redirect_attributed: pd.DataFrame`
 
-Inner join: `chat_interaction` ⨝ `redirects` on `chat_interaction.correlation_id == redirects.pre_redirect_id`. One row per attributed redirect, carrying `utid`, `chat_session_id`, `request_id`, `correlation_id`, `variant`, `dt`.
+Inner join: `chat_interaction` ⨝ `redirects` on `chat_interaction.correlation_id == redirects.pre_redirect_id`. One row per attributed redirect, carrying `utid`, `chat_session_id`, `request_id`, `correlation_id`, `variant`, `dt`. Variant is inherited from the `chat_interaction` side; the `redirects.csv` `dt` and `utid` columns are not used for the join.
 
 ---
 
@@ -235,10 +214,10 @@ ReportContext {
 
 | Rule | Source | Enforcement point |
 |------|--------|-------------------|
-| Each `utid` → exactly one `variant` | FR-003 | `analysis/load.py` builds `variant_lookup` and exclusion set |
+| Each `utid` in `ots_chat.csv` → exactly one `variant` (in-file consistency only) | FR-003 (scoped) | `analysis/load.py` builds `variant_lookup` and exclusion set |
 | Empty `chat_session_id` excluded from per-session aggregates only | Edge Cases | `analysis/engagement.py` and `analysis/trends.py` |
 | Redirect join uses ONLY `CHAT_TYPE_INTENT_RECOGNITION` rows | FR-009 | `analysis/redirects.py` |
-| Per-user rate denominator = `variant_population[v]` (not chat-active users) | FR-013 | `analysis/redirects.py` for funnel metric |
+| Per-user rate denominator = `variant_population[v]` (= distinct utids in `ots_chat` with that variant) | FR-013 | `analysis/redirects.py` for funnel metric |
 | `flat_threshold_pct = 2.0` declared in report Appendix | FR-007 | `analysis/render.py` includes this in the rendered template |
 | `alpha = 0.05`, no correction | FR-SIG-004, FR-SIG-006 | `analysis/stats.py` constants |
 | Date range from min/max of `dt` across loaded files | FR-002 | `analysis/load.py` |

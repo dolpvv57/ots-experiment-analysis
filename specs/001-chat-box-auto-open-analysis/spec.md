@@ -12,6 +12,7 @@
 - Q: Which statistical test method should be used for significance testing? → A: Two-proportion z-test for rate metrics, Welch's t-test for the `rounds` mean; report p-value AND 95% confidence interval for the lift; α = 0.05.
 - Q: How should multiple-comparisons correction be handled across the ~13 tests? → A: No correction; report raw p-values and add an appendix note disclosing that with 13 tests at α=0.05 the expected false-positive count is ≈ 0.65.
 - Q: Which metrics get daily trend charts and how should they be laid out? → A: Four daily-trend charts total — Engagement-absolute (daily INTENT_RECOGNITION volume), Engagement-ratio (daily INTENT_RECOGNITION ÷ SUGGESTIONS), Redirect-absolute (daily redirect count, INTENT_RECOGNITION-only), Redirect-ratio (daily redirect ÷ INTENT_RECOGNITION). Each chart contains two side-by-side sub-panels for the `utid` and `chat_session_id` aggregation dimensions, with one line per variant on each sub-panel.
+- Q: Should `actions.csv` be loaded and used for variant-consistency validation (FR-003) and the funnel-rate denominator (FR-013)? → A: No. Drop `actions.csv` from this analysis entirely. Variant labels are taken from `ots_chat.csv` only. The FR-013 funnel-rate denominator is `distinct utids per variant in ots_chat.csv` (users who at least had one chat event of either type). Variant-consistency cross-checking has already been validated upstream and is out of scope here.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -81,9 +82,9 @@ The analyst wants to share results with non-technical stakeholders by sending th
 
 #### Data Loading and Preparation
 
-- **FR-001**: System MUST load all four CSV files from `Chat-box-auto-open/data/` (actions.csv, ots_chat.csv, redirects.csv; ots_matched_hotels.csv is explicitly out of scope and MUST NOT be loaded for this analysis).
-- **FR-002**: System MUST report, for each loaded file, the row count, date range (`dt` min/max), and distinct count of `utid` and `variant` so the analyst can sanity-check the inputs.
-- **FR-003**: System MUST validate that every utid is consistently assigned to a single variant across all files; rows with conflicting variant assignments MUST be reported in the appendix and excluded from comparative analysis.
+- **FR-001**: System MUST load two CSV files from `Chat-box-auto-open/data/`: `ots_chat.csv` and `redirects.csv`. `actions.csv` and `ots_matched_hotels.csv` are explicitly out of scope and MUST NOT be loaded for this analysis. (Variant labels are read from `ots_chat.csv`; `redirects.csv` carries no variant column and inherits variant via the join on `correlation_id`.)
+- **FR-002**: System MUST report, for each loaded file, the row count, date range (`dt` min/max), and distinct count of `utid` (and `variant` for `ots_chat.csv`) so the analyst can sanity-check the inputs.
+- **FR-003**: Variant-consistency cross-file validation is OUT OF SCOPE for this analysis (per Clarifications session 2026-05-21). Variant labels are sourced from `ots_chat.csv` only; if a single utid appears with both A and B labels within `ots_chat.csv`, those rows MUST still be reported as "variant-conflict" rows in the appendix and excluded from comparative analysis.
 
 #### Engagement Analysis
 
@@ -103,7 +104,7 @@ The analyst wants to share results with non-technical stakeholders by sending th
   - **Per request**: % of request_ids with ≥1 redirected correlation_id.
   - **Per correlation_id**: % of interaction-chat correlation_ids with a matching redirect.
 - **FR-012**: System MUST report variant A rate, variant B rate, absolute difference, and relative lift for each of the four redirect rates above, in both a table and a chart.
-- **FR-013**: System MUST report per-user redirect rate using the population of *all variant users* (denominator = unique utids in that variant from any source file), not just users who chatted, as a secondary metric, so the reader can see funnel-level impact.
+- **FR-013**: System MUST report per-user redirect rate using the population of *all chat users in that variant* (denominator = distinct utids per variant in `ots_chat.csv`, i.e. users who had at least one chat event of either type), as a secondary metric, so the reader can see funnel-level impact among the population that actually saw the chat surface.
 
 #### Statistical Significance
 
@@ -141,10 +142,9 @@ The analyst wants to share results with non-technical stakeholders by sending th
 
 ### Key Entities *(include if feature involves data)*
 
-- **Action Event**: A user behavior recorded in actions.csv (chat box click/load, sort, filter, map move, marker click). Out of scope for engagement and redirect computation in this analysis but may be used to identify the population of variant users.
 - **Chat Event**: A row in ots_chat.csv. Two distinct kinds: SUGGESTIONS (auto-generated when the user enters day view) and INTENT_RECOGNITION (user actively interacted). Each chat event has a correlation_id that links to backend requests; multiple correlation_ids share a request_id; multiple chat events share a chat_session_id; chat events are owned by a utid.
-- **Redirect Event**: A row in redirects.csv representing a partner-redirect click. Linked back to the chat that produced it via pre_redirect_id = chat.correlation_id.
-- **Variant Assignment**: The mapping utid → A or B, present on every row of every file. Defines who is in control vs treatment.
+- **Redirect Event**: A row in redirects.csv representing a partner-redirect click. Linked back to the chat that produced it via pre_redirect_id = chat.correlation_id. `redirects.csv` carries no `variant` column; variant is inferred from the joined chat row.
+- **Variant Assignment**: The mapping utid → A or B, sourced from `ots_chat.csv` (every chat row carries a variant). Defines who is in control vs treatment.
 - **Aggregation Dimension**: One of {utid, chat_session_id, request_id, correlation_id} — the four granularity levels at which both engagement and redirect metrics are computed and compared.
 
 ## Success Criteria *(mandatory)*
@@ -156,18 +156,18 @@ The analyst wants to share results with non-technical stakeholders by sending th
 - **SC-003**: All four redirect rates (one per aggregation dimension) are present in the report with variant A rate, variant B rate, absolute difference, and relative lift, computed only from CHAT_TYPE_INTENT_RECOGNITION rows.
 - **SC-004**: The HTML report opens correctly in a modern browser with no internet connection and no external dependencies (verified by opening the file from a different directory with the network disabled).
 - **SC-005**: The data overview section confirms the analyzed date range matches the date range present in the source files (no silent dropping of dates).
-- **SC-006**: The number of variant A and variant B users reported in the appendix matches the count of distinct utids per variant in actions.csv (cross-check against the source).
+- **SC-006**: The number of variant A and variant B users reported in the appendix equals the count of distinct utids per variant in `ots_chat.csv`.
 - **SC-007**: A non-technical stakeholder (product manager unfamiliar with the data) can read the report end-to-end and answer the question "did auto-open improve chat usage and partner redirects?" without asking follow-up questions about methodology.
 
 ## Assumptions
 
 - **Data freshness**: The four CSV files in `Chat-box-auto-open/data/` are the final, complete experiment dataset. No live data refresh is needed; the analysis is one-shot.
 - **Variant labels**: `A` always means control (manual-open, status quo) and `B` always means treatment (auto-open). This is consistent with the user's description.
-- **Population definition**: The set of "variant A users" and "variant B users" is the set of distinct utids appearing with that variant label across the source files. No additional eligibility filter (e.g., country, device) is applied unless surfaced as a follow-up.
+- **Population definition**: The set of "variant A users" and "variant B users" is the set of distinct utids appearing with that variant label in `ots_chat.csv`. Users who never produced any chat event are not counted, even if they would appear in `actions.csv`. No additional eligibility filter (country, device, etc.) is applied.
 - **Statistical testing**: Significance testing is in scope (per FR-SIG-001..005). Rate metrics use a two-proportion z-test; the `rounds` mean uses Welch's t-test; α = 0.05; both p-values and 95% CIs are reported.
 - **Date scope**: The analysis covers the full date range present in the data; no date trimming for ramp-up or warm-up periods is applied unless the data overview reveals an obvious anomaly.
 - **Aggregation semantics**: At per-session / per-request / per-correlation_id levels, "engagement" means "count of distinct IDs at that level that have ≥1 row of the relevant chat_type". For "redirect rate per X", the numerator is "distinct Xs with ≥1 matched redirect" and the denominator is "distinct Xs with ≥1 INTENT_RECOGNITION row".
 - **Charting library**: A Python plotting library that supports embedding charts directly in HTML (e.g., as inline SVG or self-contained interactive HTML) will be used so FR-015 (self-contained file) holds. Specific library choice is left to the implementation.
 - **Outliers**: Outlier handling beyond surfacing top-1% concentration in the appendix (FR — Edge Cases) is out of scope for v1.
-- **Out of scope**: ots_matched_hotels.csv is not analyzed. action_type breakdowns (sort, filter, map move) are not analyzed in v1 — only chat-related engagement and redirects.
+- **Out of scope**: `actions.csv` is NOT loaded by this analysis (per Clarifications session 2026-05-21); `ots_matched_hotels.csv` is not analyzed. action_type breakdowns (sort, filter, map move) are not analyzed in v1 — only chat-related engagement and redirects.
 - **In scope (per Clarifications session)**: Daily trend charts are now in scope per FR-TREND-001..006 (4 charts, 2 sub-panels each: utid + chat_session_id). Aggregation dimensions for trend charts are restricted to `utid` and `chat_session_id`; trend charts at `request_id` and `correlation_id` granularity are out of scope (those dimensions remain in the static A-vs-B summary tables only).

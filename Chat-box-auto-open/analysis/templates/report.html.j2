@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="generated_at" content="{{ ctx.generated_at.isoformat() }}">
+<title>Chat-box-auto-open Experiment — A/B Analysis</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent-A: {{ variant_colors["A"] }};
+    --accent-B: {{ variant_colors["B"] }};
+    --good: #d1fae5;
+    --bad: #fee2e2;
+    --warn: #fef3c7;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 28px; margin: 0 0 8px 0; }
+  h2 { font-size: 22px; margin: 32px 0 12px 0; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h3 { font-size: 18px; margin: 20px 0 8px 0; color: var(--fg); }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: right; }
+  th { background: #f9fafb; text-align: left; }
+  td:first-child, th:first-child { text-align: left; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  .verdict { font-weight: 700; padding: 4px 10px; border-radius: 4px; }
+  .verdict-ship { background: var(--good); color: #065f46; }
+  .verdict-do_not_ship { background: var(--bad); color: #991b1b; }
+  .verdict-inconclusive { background: var(--warn); color: #92400e; }
+  .sig-positive { background: var(--good); }
+  .sig-negative { background: var(--bad); }
+  .chart { margin: 12px 0 24px 0; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  footer { margin-top: 48px; padding: 16px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  .swatch-A { display: inline-block; width: 12px; height: 12px; background: var(--accent-A); border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .swatch-B { display: inline-block; width: 12px; height: 12px; background: var(--accent-B); border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+</style>
+<script>{{ plotly_bundle|safe }}</script>
+</head>
+<body>
+<main>
+
+<h1>Chat-box-auto-open Experiment — A/B Analysis</h1>
+<p class="muted">
+  Date range: {{ ctx.date_range[0].strftime('%Y-%m-%d') }} → {{ ctx.date_range[1].strftime('%Y-%m-%d') }}
+  · <span class="swatch-A"></span>Variant A (control, manual-open)
+  · <span class="swatch-B"></span>Variant B (treatment, auto-open)
+</p>
+
+{# ============== EXECUTIVE SUMMARY ============== #}
+<section id="exec-summary">
+<h2>Executive Summary</h2>
+<p><strong>Recommendation:</strong>
+  {% if ctx.exec_summary.recommendation == "ship" %}
+    <span class="verdict verdict-ship">SHIP</span>
+  {% elif ctx.exec_summary.recommendation == "do_not_ship" %}
+    <span class="verdict verdict-do_not_ship">DO NOT SHIP</span>
+  {% else %}
+    <span class="verdict verdict-inconclusive">INCONCLUSIVE — needs more data</span>
+  {% endif %}
+</p>
+<p>{{ ctx.exec_summary.headline_engagement }}</p>
+<p>{{ ctx.exec_summary.headline_redirect }}</p>
+<p><em>{{ ctx.exec_summary.rationale }}</em></p>
+</section>
+
+{# ============== DATA OVERVIEW ============== #}
+<section id="data-overview">
+<h2>Data Overview</h2>
+<table>
+  <thead><tr><th>File</th><th>Rows loaded</th></tr></thead>
+  <tbody>
+    <tr><td>ots_chat.csv</td><td>{{ "{:,}".format(ctx.chat_rows) }}</td></tr>
+    <tr><td>redirects.csv</td><td>{{ "{:,}".format(ctx.redirect_rows) }}</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>Variant</th><th>Distinct utids in ots_chat</th></tr></thead>
+  <tbody>
+    <tr><td>A (control)</td><td>{{ "{:,}".format(ctx.variant_population.A) }}</td></tr>
+    <tr><td>B (auto-open)</td><td>{{ "{:,}".format(ctx.variant_population.B) }}</td></tr>
+  </tbody>
+</table>
+{% if ctx.excluded_utids_count > 0 %}
+<p class="muted">{{ ctx.excluded_utids_count }} utid(s) excluded due to in-file variant conflict.</p>
+{% endif %}
+</section>
+
+{# ============== ENGAGEMENT ============== #}
+<section id="engagement">
+<h2>Engagement Analysis</h2>
+<p class="muted">Engagement metrics: 2 chat_types × 4 aggregation dimensions = 8 metrics. Rate = distinct dimension count / variant_population.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Chat type</th><th>Dimension</th>
+      <th>A count</th><th>B count</th>
+      <th>A rate</th><th>B rate</th>
+      <th>Δ rate</th><th>Rel. lift</th>
+      <th>p-value</th><th>95% CI for Δ</th>
+      <th>Verdict</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.engagement_metrics %}
+    <tr {% if m.significance_verdict == "significant" and m.directional_verdict == "positive" %}class="sig-positive"{% elif m.significance_verdict == "significant" and m.directional_verdict == "negative" %}class="sig-negative"{% endif %}>
+      <td>{{ m.chat_type }}</td>
+      <td>{{ m.dimension }}</td>
+      <td>{{ "{:,}".format(m.count_A) }}</td>
+      <td>{{ "{:,}".format(m.count_B) }}</td>
+      <td>{{ m.value_A|fmt_num(4) }}</td>
+      <td>{{ m.value_B|fmt_num(4) }}</td>
+      <td>{{ m.abs_diff|fmt_num(4) }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>[{{ m.ci_low|fmt_num(4) }}, {{ m.ci_high|fmt_num(4) }}]</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="grid-2">
+  {% for m in ctx.engagement_metrics %}
+    <div class="chart">{{ engagement_charts[m.chat_type ~ '__' ~ m.dimension]|safe }}</div>
+  {% endfor %}
+</div>
+
+<h3>Rounds per session (Welch's t-test)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Variant</th><th>n sessions</th><th>Mean</th><th>Median</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>A</td><td>{{ "{:,}".format(ctx.rounds_metric.n_sessions_A) }}</td><td>{{ ctx.rounds_metric.mean_A|fmt_num(2) }}</td><td>{{ ctx.rounds_metric.median_A|fmt_num(2) }}</td></tr>
+    <tr><td>B</td><td>{{ "{:,}".format(ctx.rounds_metric.n_sessions_B) }}</td><td>{{ ctx.rounds_metric.mean_B|fmt_num(2) }}</td><td>{{ ctx.rounds_metric.median_B|fmt_num(2) }}</td></tr>
+  </tbody>
+</table>
+<p>Δ mean = {{ ctx.rounds_metric.abs_diff_mean|fmt_num(3) }} ·
+   relative lift = {{ ctx.rounds_metric.rel_lift_mean_pct|fmt_lift }} ·
+   p = {{ ctx.rounds_metric.p_value|fmt_p }} ·
+   95% CI = [{{ ctx.rounds_metric.ci_low|fmt_num(3) }}, {{ ctx.rounds_metric.ci_high|fmt_num(3) }}] ·
+   {{ ctx.rounds_metric.directional_verdict }} / {{ ctx.rounds_metric.significance_verdict.replace('_', ' ') }}</p>
+<div class="chart">{{ rounds_chart_html|safe }}</div>
+
+<h3>Daily trend — engagement absolute (INTENT_RECOGNITION volume)</h3>
+<div class="chart">{{ trend_charts["engagement_abs"]|safe }}</div>
+
+<h3>Daily trend — engagement ratio (INTENT_RECOGNITION ÷ SUGGESTIONS)</h3>
+<div class="chart">{{ trend_charts["engagement_ratio"]|safe }}</div>
+</section>
+
+{# ============== REDIRECT ============== #}
+<section id="redirect">
+<h2>Redirect Analysis</h2>
+<p class="muted">
+  Redirect rates are computed only over CHAT_TYPE_INTENT_RECOGNITION rows (FR-009).
+  Numerator: distinct dimension values that match a redirect via correlation_id ↔ pre_redirect_id.
+  Denominator: distinct dimension values in INTENT-only chat data.
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Dimension</th>
+      <th>A num</th><th>A den</th><th>A rate</th>
+      <th>B num</th><th>B den</th><th>B rate</th>
+      <th>Δ (pp)</th><th>Rel. lift</th>
+      <th>p-value</th><th>95% CI for Δ</th>
+      <th>Verdict</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.redirect_metrics %}
+    <tr {% if m.significance_verdict == "significant" and m.directional_verdict == "positive" %}class="sig-positive"{% elif m.significance_verdict == "significant" and m.directional_verdict == "negative" %}class="sig-negative"{% endif %}>
+      <td>{{ m.dimension }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>[{{ m.ci_low|fmt_pp }}, {{ m.ci_high|fmt_pp }}]</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Funnel rate — redirect rate over all chat users (FR-013)</h3>
+<table>
+  <thead><tr><th>Variant</th><th>Numerator</th><th>Denominator (utids in ots_chat)</th><th>Rate</th></tr></thead>
+  <tbody>
+    <tr><td>A</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.numerator_A) }}</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.denominator_A) }}</td><td>{{ ctx.redirect_funnel_metric.rate_A|fmt_pct }}</td></tr>
+    <tr><td>B</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.numerator_B) }}</td><td>{{ "{:,}".format(ctx.redirect_funnel_metric.denominator_B) }}</td><td>{{ ctx.redirect_funnel_metric.rate_B|fmt_pct }}</td></tr>
+  </tbody>
+</table>
+<p>Δ = {{ ctx.redirect_funnel_metric.abs_diff|fmt_pp }} ·
+   relative lift = {{ ctx.redirect_funnel_metric.rel_lift_pct|fmt_lift }} ·
+   p = {{ ctx.redirect_funnel_metric.p_value|fmt_p }} ·
+   95% CI = [{{ ctx.redirect_funnel_metric.ci_low|fmt_pp }}, {{ ctx.redirect_funnel_metric.ci_high|fmt_pp }}] ·
+   {{ ctx.redirect_funnel_metric.directional_verdict }} / {{ ctx.redirect_funnel_metric.significance_verdict.replace('_', ' ') }}</p>
+
+<div class="grid-2">
+  {% for m in ctx.redirect_metrics %}
+    <div class="chart">{{ redirect_charts['redirect__' ~ m.dimension]|safe }}</div>
+  {% endfor %}
+  <div class="chart">{{ redirect_charts["redirect_funnel"]|safe }}</div>
+</div>
+
+<h3>Daily trend — redirect absolute</h3>
+<div class="chart">{{ trend_charts["redirect_abs"]|safe }}</div>
+
+<h3>Daily trend — redirect ratio (redirect ÷ INTENT_RECOGNITION)</h3>
+<div class="chart">{{ trend_charts["redirect_ratio"]|safe }}</div>
+</section>
+
+{# ============== APPENDIX ============== #}
+<section id="appendix">
+<h2>Appendix</h2>
+
+<h3>Methodology</h3>
+<ul>
+  <li><strong>Engagement rate:</strong> distinct dimension count / variant_population (utids in ots_chat).</li>
+  <li><strong>Engagement ratio (trend chart 2):</strong> at the utid panel — distinct INTENT utids / distinct SUGGESTIONS utids per (dt, variant). At the chat_session_id panel, since SUGGESTIONS rows have empty session_id, the denominator is the SUGGESTIONS row count per (dt, variant) — interpretable as "INTENT sessions started per suggestion render".</li>
+  <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its correlation_id appears in redirects.pre_redirect_id (FR-010). Suggestions are excluded (FR-009).</li>
+  <li><strong>Funnel rate:</strong> distinct utids with ≥1 attributed redirect ÷ variant_population (= distinct utids in ots_chat per variant). FR-013.</li>
+  <li><strong>Statistical tests:</strong> two-proportion z-test for rate metrics; Welch's t-test for the rounds mean. α = {{ ctx.alpha }}. Two-sided.</li>
+  <li><strong>Directional verdict:</strong> a relative lift greater than +{{ ctx.flat_threshold_pct }}% is "positive"; less than −{{ ctx.flat_threshold_pct }}% is "negative"; otherwise "flat" (FR-007).</li>
+  <li><strong>Significance verdict:</strong> "significant" iff p &lt; {{ ctx.alpha }} (FR-SIG-004).</li>
+</ul>
+
+<h3>Multiple comparisons</h3>
+<p>
+  This report runs <strong>{{ ctx.total_tests }}</strong> two-sided tests in total at α = {{ ctx.alpha }}.
+  At this multiplicity, the expected number of false positives under the null hypothesis is approximately
+  <strong>{{ "%.2f"|format(ctx.expected_false_positives) }}</strong>. No multiple-comparisons correction
+  (Bonferroni / Benjamini-Hochberg) is applied (FR-SIG-006). Treat borderline-significant findings
+  with this in mind.
+</p>
+
+<h3>Excluded data</h3>
+<p>
+  {% if ctx.excluded_utids_count == 0 %}
+    No utids excluded.
+  {% else %}
+    {{ ctx.excluded_utids_count }} utid(s) excluded due to in-file variant conflict in ots_chat.csv.
+  {% endif %}
+  Cross-file variant validation (against actions.csv) is intentionally NOT performed in this analysis
+  (per Clarifications session 2026-05-21).
+</p>
+
+<h3>Per-day per-variant row counts</h3>
+<p class="muted">Sanity-check: for any day where one variant's row count is much smaller than the other, treat the daily-trend points with caution.</p>
+{# We could render a small daily counts table here in a future iteration. #}
+
+</section>
+
+<footer>
+  Generated {{ ctx.generated_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}
+  · Source: ots_chat.csv + redirects.csv
+  · Plotly bundle inlined for offline viewing
+</footer>
+
+</main>
+</body>
+</html>

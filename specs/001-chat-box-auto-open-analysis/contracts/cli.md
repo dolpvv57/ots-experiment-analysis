@@ -20,7 +20,7 @@ python -m analysis.main \
 
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
-| `--data-dir` | path | `Chat-box-auto-open/data/` (relative to repo root) | Directory containing `actions.csv`, `ots_chat.csv`, `redirects.csv`. Must exist; if any of the three required files is missing, exit code 2. `ots_matched_hotels.csv` is ignored regardless of presence. |
+| `--data-dir` | path | `Chat-box-auto-open/data/` (relative to repo root) | Directory containing `ots_chat.csv` and `redirects.csv`. Must exist; if either required file is missing, exit code 2. `actions.csv` and `ots_matched_hotels.csv` are ignored regardless of presence. |
 | `--output` | path | `specs/001-chat-box-auto-open-analysis/report.html` | Destination HTML file. Parent directory must exist; the file is overwritten if present. |
 | `--flat-threshold` | float | `2.0` | Relative-lift percentage below which `directional_verdict = "flat"` (per FR-007). |
 | `--alpha` | float | `0.05` | Significance level (per FR-SIG-004). |

@@ -5,7 +5,7 @@
 
 ## Summary
 
-A one-shot Python data-analysis pipeline that ingests four CSV files from `Chat-box-auto-open/data/`, computes A/B engagement metrics (8 rate-style metrics across 4 aggregation dimensions × 2 chat types), redirect metrics (4 rate-style metrics joined via `correlation_id ↔ pre_redirect_id`), runs two-proportion z-tests on rates and Welch's t-test on the `rounds` mean (α=0.05; no multiple-comparisons correction), generates four daily-trend charts (engagement absolute/ratio + redirect absolute/ratio, each split by `utid` and `chat_session_id` sub-panels), and emits a single self-contained HTML report.
+A one-shot Python data-analysis pipeline that ingests two CSV files from `Chat-box-auto-open/data/` (`ots_chat.csv` and `redirects.csv`; `actions.csv` is intentionally not loaded), computes A/B engagement metrics (8 rate-style metrics across 4 aggregation dimensions × 2 chat types), redirect metrics (4 rate-style metrics joined via `correlation_id ↔ pre_redirect_id`), runs two-proportion z-tests on rates and Welch's t-test on the `rounds` mean (α=0.05; no multiple-comparisons correction), generates four daily-trend charts (engagement absolute/ratio + redirect absolute/ratio, each split by `utid` and `chat_session_id` sub-panels), and emits a single self-contained HTML report.
 
 **Technical approach**: Python 3.11 + pandas for CSV processing, scipy.stats + statsmodels for the z-test and Welch's t-test, Plotly for charts (rendered with `include_plotlyjs='inline'` so the HTML is fully self-contained), and Jinja2 for HTML templating. Single-script orchestration; no service or daemon. Output: one `report.html` file at the feature directory root.
 
@@ -13,13 +13,13 @@ A one-shot Python data-analysis pipeline that ingests four CSV files from `Chat-
 
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: pandas ≥ 2.0, scipy ≥ 1.11, statsmodels ≥ 0.14, plotly ≥ 5.18, jinja2 ≥ 3.1
-**Storage**: Local CSV files under `Chat-box-auto-open/data/` (read-only); ~8.5M rows total, ~750 MB on disk
+**Storage**: Local CSV files under `Chat-box-auto-open/data/` (read-only); two of the four files are loaded (`ots_chat.csv` ≈ 4.2M rows, `redirects.csv` ≈ 2M rows); `actions.csv` and `ots_matched_hotels.csv` are skipped
 **Testing**: pytest ≥ 7.4 with small CSV fixtures under `tests/fixtures/`
 **Target Platform**: macOS / Linux developer laptop (Python 3.11 venv)
 **Project Type**: Single-script analysis (one Python package, no service/UI)
 **Performance Goals**: Full pipeline (load → compute → render) completes in under 5 minutes on a 16 GB MacBook
 **Constraints**: Output `report.html` MUST open offline with no external assets; total HTML size < 10 MB so it can be emailed
-**Scale/Scope**: 4 input CSVs (~8.5M rows total); 13 statistical tests; 4 daily-trend charts × 2 sub-panels each; static A-vs-B tables for 8 engagement + 4 redirect metrics
+**Scale/Scope**: 2 input CSVs (~6.1M rows total loaded); 13 statistical tests; 4 daily-trend charts × 2 sub-panels each; static A-vs-B tables for 8 engagement + 4 redirect metrics
 
 ## Constitution Check
 
@@ -57,13 +57,13 @@ specs/001-chat-box-auto-open-analysis/
 ```text
 Chat-box-auto-open/
 ├── data/                       # Input CSVs (already present, read-only)
-│   ├── actions.csv
-│   ├── ots_chat.csv
-│   ├── redirects.csv
+│   ├── actions.csv             # NOT loaded by this analysis
+│   ├── ots_chat.csv            # LOADED (engagement + variant labels)
+│   ├── redirects.csv           # LOADED (redirect attribution)
 │   └── ots_matched_hotels.csv  # NOT loaded by this analysis
 ├── analysis/                   # NEW: Python package implementing the pipeline
 │   ├── __init__.py
-│   ├── load.py                 # CSV loading + variant-consistency validation
+│   ├── load.py                 # CSV loading + in-file variant-consistency check
 │   ├── engagement.py           # 8 engagement metrics (2 chat_types × 4 dimensions)
 │   ├── redirects.py            # 4 redirect rates + per-all-users redirect rate
 │   ├── stats.py                # two-proportion z-test + Welch's t-test + 95% CI

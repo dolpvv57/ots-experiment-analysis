@@ -118,7 +118,7 @@ The report's Data Overview section lets you cross-check the inputs without re-ru
 | Sanity check | Where in the report |
 |--------------|---------------------|
 | Date range matches the CSV `dt` columns | Data Overview > Date range |
-| utid counts per variant match `actions.csv` distinct utids | Data Overview > Variant populations |
+| utid counts per variant match `ots_chat.csv` distinct utids | Data Overview > Variant populations |
 | Suggestions volume should be much larger than interactions | Engagement table → CHAT_TYPE_SUGGESTIONS row vs CHAT_TYPE_INTENT_RECOGNITION row |
 | Redirect rate should be < ~30% (typical for chat-driven funnels) | Redirect table |
 | Daily trends shouldn't drop to zero on any single day | Daily-trend charts |
