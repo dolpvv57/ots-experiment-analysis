@@ -32,7 +32,7 @@ from analysis.render import (
 )
 
 DEFAULT_DATA_DIR = "Chat-box-auto-open/data"
-DEFAULT_OUTPUT = "specs/001-chat-box-auto-open-analysis/report.html"
+DEFAULT_OUTPUT = "Chat-box-auto-open/output/report.html"
 
 
 def _now() -> float:
