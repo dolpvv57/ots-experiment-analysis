@@ -31,7 +31,7 @@ from analysis.render import (
     render_report,
 )
 
-DEFAULT_EXPERIMENT = "chat-box-auto-open"
+DEFAULT_EXPERIMENT = "ai-filter-entrance"
 
 
 def _now() -> float:
@@ -151,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         # 8 engagement + 4 redirect + 1 funnel + 1 rounds = 14 tests in practice.
         total_tests = len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent) + 1 + 1
         ctx = ReportContext(
+            experiment_name=args.experiment,
             generated_at=make_generated_at(),
             date_range=(bundle.ots_chat["dt"].min(), bundle.ots_chat["dt"].max()),
             variant_population=pop,

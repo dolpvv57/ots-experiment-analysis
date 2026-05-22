@@ -79,7 +79,7 @@ def build_static_chart_engagement(metric: EngagementMetric) -> str:
     fig = go.Figure(
         data=[
             go.Bar(
-                x=["A (control)", "B (auto-open)"],
+                x=["A (control)", "B (treatment)"],
                 y=[metric.value_A, metric.value_B],
                 marker_color=[VARIANT_COLORS["A"], VARIANT_COLORS["B"]],
                 text=[f"{metric.value_A:.4f}", f"{metric.value_B:.4f}"],
@@ -109,7 +109,7 @@ def build_static_chart_redirect(
     fig = go.Figure(
         data=[
             go.Bar(
-                x=["A (control)", "B (auto-open)"],
+                x=["A (control)", "B (treatment)"],
                 y=[metric.rate_A, metric.rate_B],
                 marker_color=[VARIANT_COLORS["A"], VARIANT_COLORS["B"]],
                 text=[_fmt_pct(metric.rate_A), _fmt_pct(metric.rate_B)],
@@ -255,7 +255,7 @@ def build_exec_summary(
         recommendation = "ship"
         rationale = (
             "Both headline metrics moved positively and reached statistical significance "
-            "at α=0.05. Recommend shipping the auto-open behavior."
+            "at α=0.05. Recommend shipping the treatment."
         )
     else:
         recommendation = "inconclusive"
@@ -275,6 +275,7 @@ def build_exec_summary(
 
 @dataclass
 class ReportContext:
+    experiment_name: str
     generated_at: datetime
     date_range: tuple[pd.Timestamp, pd.Timestamp]
     variant_population: dict[str, int]

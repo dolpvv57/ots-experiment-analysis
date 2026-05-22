@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="generated_at" content="{{ ctx.generated_at.isoformat() }}">
-<title>Chat-box-auto-open Experiment — A/B Analysis</title>
+<title>Experiment {{ ctx.experiment_name }} — A/B Analysis</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -51,11 +51,11 @@
 <body>
 <main>
 
-<h1>Chat-box-auto-open Experiment — A/B Analysis</h1>
+<h1>{{ ctx.experiment_name }} Experiment — A/B Analysis</h1>
 <p class="muted">
   Date range: {{ ctx.date_range[0].strftime('%Y-%m-%d') }} → {{ ctx.date_range[1].strftime('%Y-%m-%d') }}
-  · <span class="swatch-A"></span>Variant A (control, manual-open)
-  · <span class="swatch-B"></span>Variant B (treatment, auto-open)
+  · <span class="swatch-A"></span>Variant A (control)
+  · <span class="swatch-B"></span>Variant B (treatment)
 </p>
 
 {# ============== EXECUTIVE SUMMARY ============== #}
@@ -90,7 +90,7 @@
   <thead><tr><th>Variant</th><th>Distinct utids in ots_chat</th></tr></thead>
   <tbody>
     <tr><td>A (control)</td><td>{{ "{:,}".format(ctx.variant_population.A) }}</td></tr>
-    <tr><td>B (auto-open)</td><td>{{ "{:,}".format(ctx.variant_population.B) }}</td></tr>
+    <tr><td>B (treatment)</td><td>{{ "{:,}".format(ctx.variant_population.B) }}</td></tr>
   </tbody>
 </table>
 </div>
