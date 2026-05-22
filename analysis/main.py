@@ -31,8 +31,7 @@ from analysis.render import (
     render_report,
 )
 
-DEFAULT_DATA_DIR = "data/chat-box-auto-open"
-DEFAULT_OUTPUT = "output/report.html"
+DEFAULT_EXPERIMENT = "chat-box-auto-open"
 
 
 def _now() -> float:
@@ -48,10 +47,24 @@ def _stage(verbose: bool, label: str, message: str, t0: float) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="analysis.main",
-        description="Generate the Chat-box-auto-open A/B analysis HTML report.",
+        description="Generate the A/B experiment analysis HTML report.",
     )
-    parser.add_argument("--data-dir", default=DEFAULT_DATA_DIR)
-    parser.add_argument("--output", default=DEFAULT_OUTPUT)
+    parser.add_argument(
+        "--experiment",
+        default=DEFAULT_EXPERIMENT,
+        help="Experiment directory name under the project root (default: %(default)s). "
+        "Data is read from <experiment>/data/, report written to <experiment>/output/report.html.",
+    )
+    parser.add_argument(
+        "--data-dir",
+        default=None,
+        help="Override input CSV directory (default: <experiment>/data).",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Override report output path (default: <experiment>/output/report.html).",
+    )
     parser.add_argument(
         "--flat-threshold",
         type=float,
@@ -71,8 +84,11 @@ def main(argv: list[str] | None = None) -> int:
     stats_module.ALPHA = args.alpha
     stats_module.FLAT_THRESHOLD_PCT = args.flat_threshold
 
-    data_dir = Path(args.data_dir)
-    output_path = Path(args.output)
+    experiment_root = Path(args.experiment)
+    data_dir = Path(args.data_dir) if args.data_dir else experiment_root / "data"
+    output_path = (
+        Path(args.output) if args.output else experiment_root / "output" / "report.html"
+    )
 
     try:
         t0 = _now()
