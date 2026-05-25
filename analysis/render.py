@@ -18,6 +18,8 @@ from plotly.subplots import make_subplots
 from analysis.types import (
     DailyTrend,
     EngagementMetric,
+    MapRateMetric,
+    MapSection,
     RedirectFunnelMetric,
     RedirectMetric,
     RoundsMetric,
@@ -203,6 +205,40 @@ def build_trend_chart(trend: DailyTrend) -> str:
     )
 
 
+def build_map_rate_chart(
+    metrics: list[MapRateMetric], title: str, div_id: str
+) -> str:
+    labels = [m.label for m in metrics]
+    max_rate = max((max(m.rate_A, m.rate_B) for m in metrics), default=1.0)
+    fig = go.Figure(data=[
+        go.Bar(
+            name="A (control)",
+            x=labels,
+            y=[m.rate_A for m in metrics],
+            marker_color=VARIANT_COLORS["A"],
+            text=[_fmt_pct(m.rate_A) for m in metrics],
+            textposition="outside",
+        ),
+        go.Bar(
+            name="B (treatment)",
+            x=labels,
+            y=[m.rate_B for m in metrics],
+            marker_color=VARIANT_COLORS["B"],
+            text=[_fmt_pct(m.rate_B) for m in metrics],
+            textposition="outside",
+        ),
+    ])
+    fig.update_layout(
+        title=title,
+        barmode="group",
+        yaxis=dict(range=[0, max_rate * 1.3], tickformat=".1%", title="Rate"),
+        height=360,
+        margin=dict(l=40, r=20, t=50, b=120),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1.0),
+    )
+    return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id=div_id)
+
+
 def build_exec_summary(
     engagement_metrics: Iterable[EngagementMetric],
     redirect_funnel: RedirectFunnelMetric,
@@ -298,6 +334,7 @@ class ReportContext:
 
     chat_rows: int
     redirect_rows: int
+    map_section: MapSection | None = None
 
 
 def render_report(context: ReportContext, output_path: Path) -> int:
@@ -349,6 +386,19 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         context.redirect_trends[1].chart_id: build_trend_chart(context.redirect_trends[1]),
     }
 
+    map_charts: dict[str, str] = {}
+    if context.map_section is not None:
+        map_charts["map_exposure"] = build_map_rate_chart(
+            context.map_section.exposure_metrics,
+            "Map usage rate by variant",
+            "chart-map-exposure",
+        )
+        map_charts["map_funnel"] = build_map_rate_chart(
+            context.map_section.funnel_metrics,
+            "Redirect rate by map-usage segment and variant",
+            "chart-map-funnel",
+        )
+
     template = env.get_template("report.html.j2")
     html = template.render(
         ctx=context,
@@ -357,6 +407,7 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         rounds_chart_html=rounds_chart_html,
         redirect_charts=redirect_charts,
         trend_charts=trend_charts,
+        map_charts=map_charts,
         variant_colors=VARIANT_COLORS,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)

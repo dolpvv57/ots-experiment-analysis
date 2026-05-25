@@ -97,6 +97,42 @@ class RedirectFunnelMetric:
 
 
 @dataclass(frozen=True)
+class MapRateMetric:
+    """One row for map exposure (block 1) or redirect funnel (block 3).
+
+    Primary stat test is utid-level.  Session counts are supplementary
+    (no separate significance test — sessions are not independent of utids).
+    """
+
+    label: str
+    # utid dimension (primary)
+    numerator_A: int
+    denominator_A: int
+    numerator_B: int
+    denominator_B: int
+    rate_A: float
+    rate_B: float
+    abs_diff: float
+    rel_lift_pct: float
+    p_value: float
+    ci_low: float
+    ci_high: float
+    directional_verdict: DirectionalVerdict
+    significance_verdict: SignificanceVerdict
+
+
+
+@dataclass(frozen=True)
+class MapSection:
+    """All map-analysis outputs for the chat-box-auto-open experiment report."""
+
+    population_A: int
+    population_B: int
+    exposure_metrics: list[MapRateMetric]  # block 1: 3 rows
+    funnel_metrics: list[MapRateMetric]    # block 3: 4 rows (3 segments + overall)
+
+
+@dataclass(frozen=True)
 class DailyTrend:
     """One of the four daily-trend charts.
 

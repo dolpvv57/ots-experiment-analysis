@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="generated_at" content="{{ ctx.generated_at.isoformat() }}">
-<title>Experiment {{ ctx.experiment_name }} — A/B Analysis</title>
+<title>{{ ctx.experiment_name | replace("-", " ") | title }} Experiment — A/B Analysis</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -51,7 +51,7 @@
 <body>
 <main>
 
-<h1>{{ ctx.experiment_name }} Experiment — A/B Analysis</h1>
+<h1>{{ ctx.experiment_name | replace("-", " ") | title }} Experiment — A/B Analysis</h1>
 <p class="muted">
   Date range: {{ ctx.date_range[0].strftime('%Y-%m-%d') }} → {{ ctx.date_range[1].strftime('%Y-%m-%d') }}
   · <span class="swatch-A"></span>Variant A (control)
@@ -251,6 +251,104 @@
 <h3>Daily trend: redirect ratio (redirect ÷ INTENT_RECOGNITION)</h3>
 <div class="chart">{{ trend_charts["redirect_ratio"]|safe }}</div>
 </section>
+
+{# ============== MAP USAGE (experiment-specific, conditional) ============== #}
+{% if ctx.map_section %}
+<section id="map-usage">
+<h2>Map Usage Analysis</h2>
+<p class="muted">
+  Population: users with <code>CHAT_BOX_ENTRY_LOADED</code> in actions.csv — proxy for "rendered day view with chat box"
+  (A: {{ "{:,}".format(ctx.map_section.population_A) }}, B: {{ "{:,}".format(ctx.map_section.population_B) }}).
+</p>
+
+<h3>Block 1: Map Exposure Rate</h3>
+<p class="muted">% of users (CHAT_BOX_ENTRY_LOADED population) who performed each map action at least once.</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Metric</th>
+      <th colspan="2" style="text-align:center">A (control)</th>
+      <th colspan="2" style="text-align:center">B (treatment)</th>
+      <th rowspan="2" style="vertical-align:middle">Rel. lift</th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th rowspan="2" style="vertical-align:middle">p-value</th>
+      <th rowspan="2" style="vertical-align:middle">Verdict</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.map_section.exposure_metrics %}
+    <tr>
+      <td>{{ m.label }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td class="{% if m.directional_verdict == 'positive' %}sig-positive{% elif m.directional_verdict == 'negative' %}sig-negative{% endif %}">
+        {{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="chart">{{ map_charts["map_exposure"]|safe }}</div>
+
+
+
+<h3>Block 2: Redirect Funnel by Map Usage</h3>
+<p class="muted">
+  P(redirect | user segment), per variant. "Map users" = ≥1 MAP_MOVING or MAP_HOTEL_MARKER_CLICK.
+  Denominators are users within each segment; the final row shows the overall loaded-user population as a reference.
+</p>
+<div style="background:var(--warn);border-left:4px solid #d97706;padding:10px 14px;margin:8px 0 12px 0;font-size:14px;border-radius:0 4px 4px 0;">
+  <strong>⚠ 解读警告 (Simpson's Paradox) </strong><br>
+  B 组内, "地图用户"和"非地图用户"的转化率均高于 A 组, 但整体转化率几乎持平 (见最后一行) 。这并不意味着 B 对两类用户都有益。<br><br>
+  真实机制: <strong>B 的 auto-open chat 将约 10 pp 的用户从高价值"地图用户"桶 (转化率 ~35%) 推入低价值"非地图用户"桶 (转化率 ~19%) </strong>。这一组成位移 (composition shift) 抵消了 B 在各子集内看似更高的转化率。<br><br>
+  各子集内"B &gt; A"是事后选择偏差的结果: 能在 auto-open chat 遮挡下仍坚持使用地图的 B 组用户, 本身意愿更强, 因此转化率更高; 这不是 B 的真实优势, 而是筛选效应。应以整体 (overall) 行作为主要参考, 而非各子集。
+</div>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Segment</th>
+      <th colspan="3" style="text-align:center">A (control)</th>
+      <th colspan="3" style="text-align:center">B (treatment)</th>
+      <th rowspan="2" style="vertical-align:middle">Rel. lift</th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th rowspan="2" style="vertical-align:middle">p-value</th>
+      <th rowspan="2" style="vertical-align:middle">Verdict</th>
+    </tr>
+    <tr>
+      <th>users</th><th>redirect</th><th>rate</th>
+      <th>users</th><th>redirect</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.map_section.funnel_metrics %}
+    <tr{% if loop.last %} style="border-top: 2px solid var(--line); font-weight:600"{% endif %}>
+      <td>{{ m.label }}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="chart">{{ map_charts["map_funnel"]|safe }}</div>
+</section>
+{% endif %}
 
 {# ============== APPENDIX ============== #}
 <section id="appendix">
