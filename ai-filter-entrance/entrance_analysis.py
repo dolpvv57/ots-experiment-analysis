@@ -70,9 +70,13 @@ def _wilson(num: int, den: int) -> tuple[float, float]:
     return float(low), float(high)
 
 
-def _cell(num: int, den: int) -> PerEntranceCell:
+def _cell(num: int, den: int, redirect_num: int = 0) -> PerEntranceCell:
     rate = num / den if den > 0 else float("nan")
-    return PerEntranceCell(numerator=num, denominator=den, rate=rate)
+    redirect_rate = redirect_num / num if num > 0 else float("nan")
+    return PerEntranceCell(
+        numerator=num, denominator=den, rate=rate,
+        redirect_count=redirect_num, redirect_rate=redirect_rate,
+    )
 
 
 def _parse_field(payload: object, key: str) -> str | None:
@@ -177,9 +181,11 @@ def compute(
         cells_block2: dict[str, PerEntranceCell] = {}
         for entrance in _ENTRANCE_NAMES:
             loaded = loaded_users_by_entrance[entrance]
+            native_users = loaded & event_users
             cells_block2[entrance] = _cell(
-                num=len(loaded & event_users),
+                num=len(native_users),
                 den=len(loaded),
+                redirect_num=len(native_users & redirected_utids),
             )
         native_event_rates.append(PerEntranceEventRow(
             event=event,
@@ -225,13 +231,22 @@ def compute(
             not_loaded_rate = (
                 not_loaded_hit / not_loaded_n if not_loaded_n > 0 else float("nan")
             )
+            loaded_redirect = len(loaded & event_users & redirected_utids)
+            not_loaded_redirect = len(not_loaded & event_users & redirected_utids)
+            loaded_redirect_rate = loaded_redirect / loaded_hit if loaded_hit > 0 else float("nan")
+            not_loaded_redirect_rate = not_loaded_redirect / not_loaded_hit if not_loaded_hit > 0 else float("nan")
             rows.append(EntranceImpactRow(
                 event=event,
                 loaded_event_users=loaded_hit,
                 loaded_rate=loaded_rate,
+                loaded_redirect_count=loaded_redirect,
+                loaded_redirect_rate=loaded_redirect_rate,
                 not_loaded_event_users=not_loaded_hit,
                 not_loaded_rate=not_loaded_rate,
+                not_loaded_redirect_count=not_loaded_redirect,
+                not_loaded_redirect_rate=not_loaded_redirect_rate,
                 abs_diff=loaded_rate - not_loaded_rate,
+                redirect_rate_diff=loaded_redirect_rate - not_loaded_redirect_rate,
             ))
 
         impact_tables.append(EntranceImpactTable(

@@ -421,9 +421,16 @@
     </tr>
   </thead>
   <tbody>
+    {% set event_labels = {
+      "DAY_VIEW_FILTERS_USED":      "FILTERS_USED",
+      "DAY_VIEW_SORT_USED":         "SORT_USED",
+      "MAP_MOVING_DAY_VIEW":        "MAP_MOVING",
+      "MAP_HOTEL_MARKER_CLICK":     "MAP_HOTEL_CLICK",
+      "DAY_VIEW_HOTEL_CARD_CLICKED":"HOTEL_CARD_CLICK"
+    } %}
     {% for row in ctx.entrance_section.native_event_rates %}
     <tr>
-      <td>{{ row.event }}</td>
+      <td>{{ event_labels.get(row.event, row.event) }}</td>
       {% for e in ctx.entrance_section.entrance_names %}
       {% set c = row.cells[e] %}
       <td>{{ "{:,}".format(c.numerator) }}</td>
@@ -455,30 +462,43 @@
   <thead>
     <tr>
       <th rowspan="2" style="vertical-align:middle">Event</th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         loaded {{ tbl.entrance }}<br>
         <span class="muted" style="font-weight:400">(n={{ "{:,}".format(tbl.loaded_users) }})</span>
       </th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         not loaded {{ tbl.entrance }}<br>
         <span class="muted" style="font-weight:400">(n={{ "{:,}".format(tbl.not_loaded_users) }})</span>
       </th>
-      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th colspan="2" style="text-align:center">Δ (pp)</th>
     </tr>
     <tr>
-      <th>users</th><th>rate</th>
-      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>event rate</th><th>redirect rate</th>
     </tr>
   </thead>
   <tbody>
+    {% set event_labels = {
+      "DAY_VIEW_FILTERS_USED":      "FILTERS_USED",
+      "DAY_VIEW_SORT_USED":         "SORT_USED",
+      "MAP_MOVING_DAY_VIEW":        "MAP_MOVING",
+      "MAP_HOTEL_MARKER_CLICK":     "MAP_HOTEL_CLICK",
+      "DAY_VIEW_HOTEL_CARD_CLICKED":"HOTEL_CARD_CLICK"
+    } %}
     {% for r in tbl.rows %}
     <tr>
-      <td>{{ r.event }}</td>
+      <td>{{ event_labels.get(r.event, r.event) }}</td>
       <td>{{ "{:,}".format(r.loaded_event_users) }}</td>
       <td>{{ r.loaded_rate|fmt_pct }}</td>
+      <td>{{ "{:,}".format(r.loaded_redirect_count) }}</td>
+      <td>{{ r.loaded_redirect_rate|fmt_pct }}</td>
       <td>{{ "{:,}".format(r.not_loaded_event_users) }}</td>
       <td>{{ r.not_loaded_rate|fmt_pct }}</td>
+      <td>{{ "{:,}".format(r.not_loaded_redirect_count) }}</td>
+      <td>{{ r.not_loaded_redirect_rate|fmt_pct }}</td>
       <td>{{ r.abs_diff|fmt_pp }}</td>
+      <td>{{ r.redirect_rate_diff|fmt_pp }}</td>
     </tr>
     {% endfor %}
   </tbody>

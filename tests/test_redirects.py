@@ -55,7 +55,8 @@ def test_attribution_drops_unmatched_redirects(setup) -> None:
 def test_redirect_metric_per_utid(setup) -> None:
     """A: 0/{u1}=0%; B: 2/3≈66.67% (B redirect utids: u3, u4 of {u3, u4, u6})."""
     chat, _, attributed = setup
-    metrics = compute_redirect_metrics(chat, attributed)
+    intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+    metrics = compute_redirect_metrics(attributed, intent_chat)
     m = _by_dim(metrics, "utid")
     assert m.numerator_A == 0
     assert m.denominator_A == 1
@@ -68,7 +69,8 @@ def test_redirect_metric_per_utid(setup) -> None:
 def test_redirect_metric_per_correlation_id(setup) -> None:
     """A: 0/1=0%; B: 3/4=75%."""
     chat, _, attributed = setup
-    metrics = compute_redirect_metrics(chat, attributed)
+    intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+    metrics = compute_redirect_metrics(attributed, intent_chat)
     m = _by_dim(metrics, "correlation_id")
     assert m.numerator_B == 3
     assert m.denominator_B == 4
@@ -78,7 +80,8 @@ def test_redirect_metric_per_correlation_id(setup) -> None:
 def test_redirect_metric_per_session_excludes_empty(setup) -> None:
     """B: {s2, s3}/{s2, s3, s4} = 2/3."""
     chat, _, attributed = setup
-    metrics = compute_redirect_metrics(chat, attributed)
+    intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+    metrics = compute_redirect_metrics(attributed, intent_chat)
     m = _by_dim(metrics, "chat_session_id")
     assert m.numerator_B == 2
     assert m.denominator_B == 3

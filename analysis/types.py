@@ -159,6 +159,8 @@ class PerEntranceCell:
     numerator: int
     denominator: int
     rate: float
+    redirect_count: int = 0
+    redirect_rate: float = float("nan")
 
 
 @dataclass(frozen=True)
@@ -180,9 +182,14 @@ class EntranceImpactRow:
     event: str
     loaded_event_users: int       # numerator for "loaded entrance" subset
     loaded_rate: float
+    loaded_redirect_count: int
+    loaded_redirect_rate: float
     not_loaded_event_users: int   # numerator for "not loaded entrance" subset
     not_loaded_rate: float
+    not_loaded_redirect_count: int
+    not_loaded_redirect_rate: float
     abs_diff: float                # loaded_rate − not_loaded_rate (proportion units)
+    redirect_rate_diff: float      # loaded_redirect_rate − not_loaded_redirect_rate
 
 
 @dataclass(frozen=True)

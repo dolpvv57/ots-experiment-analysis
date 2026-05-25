@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="generated_at" content="2026-05-25T08:28:27.163117+00:00">
+<meta name="generated_at" content="2026-05-25T09:06:46.209954+00:00">
 <title>Ai Filter Entrance Experiment — A/B Analysis</title>
 <style>
   :root {
@@ -446,7 +446,7 @@
   </thead>
   <tbody>
     <tr>
-      <td>DAY_VIEW_FILTERS_USED</td>
+      <td>FILTERS_USED</td>
       <td>25,806</td>
       <td>19.49%</td>
       <td>27,235</td>
@@ -457,7 +457,7 @@
       <td>12.06%</td>
     </tr>
     <tr>
-      <td>DAY_VIEW_SORT_USED</td>
+      <td>SORT_USED</td>
       <td>29,576</td>
       <td>22.34%</td>
       <td>30,228</td>
@@ -468,7 +468,7 @@
       <td>25.26%</td>
     </tr>
     <tr>
-      <td>MAP_MOVING_DAY_VIEW</td>
+      <td>MAP_MOVING</td>
       <td>66,509</td>
       <td>50.23%</td>
       <td>69,672</td>
@@ -479,7 +479,7 @@
       <td>47.08%</td>
     </tr>
     <tr>
-      <td>MAP_HOTEL_MARKER_CLICK</td>
+      <td>MAP_HOTEL_CLICK</td>
       <td>19,195</td>
       <td>14.50%</td>
       <td>20,650</td>
@@ -490,7 +490,7 @@
       <td>12.42%</td>
     </tr>
     <tr>
-      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>HOTEL_CARD_CLICK</td>
       <td>66,222</td>
       <td>50.01%</td>
       <td>67,899</td>
@@ -503,7 +503,7 @@
   </tbody>
 </table>
 
-<h3>Block 2 add-on: With vs without each entrance (active users only)</h3>
+<h3>Block 3: With vs without each entrance (active users only)</h3>
 <p class="muted">
   Population restricted to <strong>active utids</strong> — those who
   triggered at least one native event (FILTERS_USED, SORT_USED, MAP_*,
@@ -523,29 +523,35 @@
   <thead>
     <tr>
       <th rowspan="2" style="vertical-align:middle">Event</th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         loaded inline<br>
         <span class="muted" style="font-weight:400">(n=100,528)</span>
       </th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         not loaded inline<br>
         <span class="muted" style="font-weight:400">(n=153,004)</span>
       </th>
-      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th colspan="2" style="text-align:center">Δ (pp)</th>
     </tr>
     <tr>
-      <th>users</th><th>rate</th>
-      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>event rate</th><th>redirect rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>HOTEL_CARD_CLICK</td>
       <td>66,222</td>
       <td>65.87%</td>
+      <td>37,592</td>
+      <td>56.77%</td>
       <td>103,239</td>
       <td>67.47%</td>
+      <td>54,935</td>
+      <td>53.21%</td>
       <td>-1.60 pp</td>
+      <td>+3.56 pp</td>
     </tr>
   </tbody>
 </table>
@@ -554,45 +560,61 @@
   <thead>
     <tr>
       <th rowspan="2" style="vertical-align:middle">Event</th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         loaded map<br>
         <span class="muted" style="font-weight:400">(n=103,535)</span>
       </th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         not loaded map<br>
         <span class="muted" style="font-weight:400">(n=149,997)</span>
       </th>
-      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th colspan="2" style="text-align:center">Δ (pp)</th>
     </tr>
     <tr>
-      <th>users</th><th>rate</th>
-      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>event rate</th><th>redirect rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>MAP_MOVING_DAY_VIEW</td>
+      <td>MAP_MOVING</td>
       <td>69,672</td>
       <td>67.29%</td>
+      <td>25,946</td>
+      <td>37.24%</td>
       <td>69,706</td>
       <td>46.47%</td>
+      <td>25,682</td>
+      <td>36.84%</td>
       <td>+20.82 pp</td>
+      <td>+0.40 pp</td>
     </tr>
     <tr>
-      <td>MAP_HOTEL_MARKER_CLICK</td>
+      <td>MAP_HOTEL_CLICK</td>
       <td>20,650</td>
       <td>19.94%</td>
+      <td>10,834</td>
+      <td>52.46%</td>
       <td>19,910</td>
       <td>13.27%</td>
+      <td>10,461</td>
+      <td>52.54%</td>
       <td>+6.67 pp</td>
+      <td>-0.08 pp</td>
     </tr>
     <tr>
-      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>HOTEL_CARD_CLICK</td>
       <td>67,899</td>
       <td>65.58%</td>
+      <td>38,587</td>
+      <td>56.83%</td>
       <td>101,562</td>
       <td>67.71%</td>
+      <td>53,940</td>
+      <td>53.11%</td>
       <td>-2.13 pp</td>
+      <td>+3.72 pp</td>
     </tr>
   </tbody>
 </table>
@@ -601,37 +623,48 @@
   <thead>
     <tr>
       <th rowspan="2" style="vertical-align:middle">Event</th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         loaded filter<br>
         <span class="muted" style="font-weight:400">(n=106,237)</span>
       </th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         not loaded filter<br>
         <span class="muted" style="font-weight:400">(n=147,295)</span>
       </th>
-      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th colspan="2" style="text-align:center">Δ (pp)</th>
     </tr>
     <tr>
-      <th>users</th><th>rate</th>
-      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>event rate</th><th>redirect rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>DAY_VIEW_FILTERS_USED</td>
+      <td>FILTERS_USED</td>
       <td>38,080</td>
       <td>35.84%</td>
+      <td>14,251</td>
+      <td>37.42%</td>
       <td>33,609</td>
       <td>22.82%</td>
+      <td>15,149</td>
+      <td>45.07%</td>
       <td>+13.03 pp</td>
+      <td>-7.65 pp</td>
     </tr>
     <tr>
-      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>HOTEL_CARD_CLICK</td>
       <td>72,633</td>
       <td>68.37%</td>
+      <td>36,712</td>
+      <td>50.54%</td>
       <td>96,828</td>
       <td>65.74%</td>
+      <td>55,815</td>
+      <td>57.64%</td>
       <td>+2.63 pp</td>
+      <td>-7.10 pp</td>
     </tr>
   </tbody>
 </table>
@@ -640,37 +673,48 @@
   <thead>
     <tr>
       <th rowspan="2" style="vertical-align:middle">Event</th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         loaded sort<br>
         <span class="muted" style="font-weight:400">(n=53,339)</span>
       </th>
-      <th colspan="2" style="text-align:center">
+      <th colspan="4" style="text-align:center">
         not loaded sort<br>
         <span class="muted" style="font-weight:400">(n=200,193)</span>
       </th>
-      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+      <th colspan="2" style="text-align:center">Δ (pp)</th>
     </tr>
     <tr>
-      <th>users</th><th>rate</th>
-      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>users</th><th>rate</th><th>redirect</th><th>redirect rate</th>
+      <th>event rate</th><th>redirect rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>DAY_VIEW_SORT_USED</td>
+      <td>SORT_USED</td>
       <td>18,374</td>
       <td>34.45%</td>
+      <td>7,891</td>
+      <td>42.95%</td>
       <td>56,165</td>
       <td>28.06%</td>
+      <td>21,489</td>
+      <td>38.26%</td>
       <td>+6.39 pp</td>
+      <td>+4.69 pp</td>
     </tr>
     <tr>
-      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>HOTEL_CARD_CLICK</td>
       <td>35,390</td>
       <td>66.35%</td>
+      <td>20,996</td>
+      <td>59.33%</td>
       <td>134,071</td>
       <td>66.97%</td>
+      <td>71,531</td>
+      <td>53.35%</td>
       <td>-0.62 pp</td>
+      <td>+5.97 pp</td>
     </tr>
   </tbody>
 </table>
@@ -710,7 +754,7 @@
 </section>
 
 <footer>
-  Generated 2026-05-25 08:28:27 UTC
+  Generated 2026-05-25 09:06:46 UTC
   · Source: ots_chat.csv + redirects.csv
   · Plotly bundle inlined for offline viewing
 </footer>
