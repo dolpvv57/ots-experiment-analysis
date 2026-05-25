@@ -18,6 +18,7 @@ from plotly.subplots import make_subplots
 from analysis.types import (
     DailyTrend,
     EngagementMetric,
+    EntranceSection,
     MapRateMetric,
     MapSection,
     RedirectFunnelMetric,
@@ -335,6 +336,7 @@ class ReportContext:
     chat_rows: int
     redirect_rows: int
     map_section: MapSection | None = None
+    entrance_section: EntranceSection | None = None
 
 
 def render_report(context: ReportContext, output_path: Path) -> int:

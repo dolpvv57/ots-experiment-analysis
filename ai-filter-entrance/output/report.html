@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="generated_at" content="2026-05-23T07:52:15.888619+00:00">
+<meta name="generated_at" content="2026-05-25T08:28:27.163117+00:00">
 <title>Ai Filter Entrance Experiment — A/B Analysis</title>
 <style>
   :root {
@@ -337,6 +337,345 @@
 </section>
 
 
+<section id="entrance-analysis">
+<h2>Entrance Position Analysis</h2>
+<p class="muted">
+  Variant-agnostic throughout: every metric is sliced by entrance
+  (<code>loaded_area</code>), not by A/B. The 4 entrance loader populations
+  overlap (e.g. a user who loaded <em>inline</em> may also have loaded
+  <em>map</em>); each cell is a within-entrance rate.
+</p>
+
+<h3>Block 1: Per-entrance CTR &amp; redirect rate</h3>
+<p class="muted">
+  Descriptive ranking of the 4 entrances. <br>
+  CTR = clicked utids / loaded utids. <br>
+  Redirect rate (clickers) = clickers with any utid match in
+  <code>redirects.csv</code> / clickers. 95% Wilson CIs in brackets.
+</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th>Entrance</th>
+      <th>Loaded users</th>
+      <th>Clicked users</th>
+      <th>CTR</th>
+      <th>CTR 95% CI</th>
+      <th>Redirect (clickers)</th>
+      <th>Redirect rate (clickers)</th>
+      <th>Redirect 95% CI</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>inline</td>
+      <td>132,412</td>
+      <td>1,595</td>
+      <td>1.20%</td>
+      <td>[1.15%, 1.26%]</td>
+      <td>727</td>
+      <td>45.58%</td>
+      <td>[43.15%, 48.03%]</td>
+    </tr>
+    <tr>
+      <td>map</td>
+      <td>135,318</td>
+      <td>417</td>
+      <td>0.31%</td>
+      <td>[0.28%, 0.34%]</td>
+      <td>190</td>
+      <td>45.56%</td>
+      <td>[40.85%, 50.36%]</td>
+    </tr>
+    <tr>
+      <td>filter</td>
+      <td>947,089</td>
+      <td>4,315</td>
+      <td>0.46%</td>
+      <td>[0.44%, 0.47%]</td>
+      <td>1,560</td>
+      <td>36.15%</td>
+      <td>[34.73%, 37.60%]</td>
+    </tr>
+    <tr>
+      <td>sort</td>
+      <td>72,728</td>
+      <td>1,875</td>
+      <td>2.58%</td>
+      <td>[2.47%, 2.70%]</td>
+      <td>877</td>
+      <td>46.77%</td>
+      <td>[44.52%, 49.04%]</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Block 2: Native feature usage by entrance</h3>
+<p class="muted">
+  For each entrance, % of its loaded utids who fired the native action at
+  least once. Compares 4 entrances side-by-side; per-column denominator
+  (loader-set size) shown in the header.
+</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        inline<br>
+        <span class="muted" style="font-weight:400">(loaded=132,412)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        map<br>
+        <span class="muted" style="font-weight:400">(loaded=135,318)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        filter<br>
+        <span class="muted" style="font-weight:400">(loaded=947,089)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        sort<br>
+        <span class="muted" style="font-weight:400">(loaded=72,728)</span>
+      </th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DAY_VIEW_FILTERS_USED</td>
+      <td>25,806</td>
+      <td>19.49%</td>
+      <td>27,235</td>
+      <td>20.13%</td>
+      <td>38,080</td>
+      <td>4.02%</td>
+      <td>8,768</td>
+      <td>12.06%</td>
+    </tr>
+    <tr>
+      <td>DAY_VIEW_SORT_USED</td>
+      <td>29,576</td>
+      <td>22.34%</td>
+      <td>30,228</td>
+      <td>22.34%</td>
+      <td>29,347</td>
+      <td>3.10%</td>
+      <td>18,374</td>
+      <td>25.26%</td>
+    </tr>
+    <tr>
+      <td>MAP_MOVING_DAY_VIEW</td>
+      <td>66,509</td>
+      <td>50.23%</td>
+      <td>69,672</td>
+      <td>51.49%</td>
+      <td>42,252</td>
+      <td>4.46%</td>
+      <td>34,240</td>
+      <td>47.08%</td>
+    </tr>
+    <tr>
+      <td>MAP_HOTEL_MARKER_CLICK</td>
+      <td>19,195</td>
+      <td>14.50%</td>
+      <td>20,650</td>
+      <td>15.26%</td>
+      <td>13,031</td>
+      <td>1.38%</td>
+      <td>9,033</td>
+      <td>12.42%</td>
+    </tr>
+    <tr>
+      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>66,222</td>
+      <td>50.01%</td>
+      <td>67,899</td>
+      <td>50.18%</td>
+      <td>72,633</td>
+      <td>7.67%</td>
+      <td>35,390</td>
+      <td>48.66%</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Block 2 add-on: With vs without each entrance (active users only)</h3>
+<p class="muted">
+  Population restricted to <strong>active utids</strong> — those who
+  triggered at least one native event (FILTERS_USED, SORT_USED, MAP_*,
+  HOTEL_CARD_CLICKED). This filters out passively-loaded users (e.g. B-group
+  users whose filter sidebar auto-loaded but who never interacted), so the
+  loaded-vs-not-loaded comparison reflects entrance position rather than
+  exposure-mechanism asymmetry.
+  <br><br>
+  For each entrance, compare the relevant native-event rates among active
+  utids who <em>loaded that entrance</em> vs active utids who <em>did not
+  load it</em> (but did load some other entrance — i.e. saw the chat-box
+  elsewhere). Δ&nbsp;=&nbsp;loaded&nbsp;rate&nbsp;−&nbsp;not-loaded&nbsp;rate.
+</p>
+
+<h4 style="margin:14px 0 4px 0">inline</h4>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        loaded inline<br>
+        <span class="muted" style="font-weight:400">(n=100,528)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        not loaded inline<br>
+        <span class="muted" style="font-weight:400">(n=153,004)</span>
+      </th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>66,222</td>
+      <td>65.87%</td>
+      <td>103,239</td>
+      <td>67.47%</td>
+      <td>-1.60 pp</td>
+    </tr>
+  </tbody>
+</table>
+<h4 style="margin:14px 0 4px 0">map</h4>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        loaded map<br>
+        <span class="muted" style="font-weight:400">(n=103,535)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        not loaded map<br>
+        <span class="muted" style="font-weight:400">(n=149,997)</span>
+      </th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>MAP_MOVING_DAY_VIEW</td>
+      <td>69,672</td>
+      <td>67.29%</td>
+      <td>69,706</td>
+      <td>46.47%</td>
+      <td>+20.82 pp</td>
+    </tr>
+    <tr>
+      <td>MAP_HOTEL_MARKER_CLICK</td>
+      <td>20,650</td>
+      <td>19.94%</td>
+      <td>19,910</td>
+      <td>13.27%</td>
+      <td>+6.67 pp</td>
+    </tr>
+    <tr>
+      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>67,899</td>
+      <td>65.58%</td>
+      <td>101,562</td>
+      <td>67.71%</td>
+      <td>-2.13 pp</td>
+    </tr>
+  </tbody>
+</table>
+<h4 style="margin:14px 0 4px 0">filter</h4>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        loaded filter<br>
+        <span class="muted" style="font-weight:400">(n=106,237)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        not loaded filter<br>
+        <span class="muted" style="font-weight:400">(n=147,295)</span>
+      </th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DAY_VIEW_FILTERS_USED</td>
+      <td>38,080</td>
+      <td>35.84%</td>
+      <td>33,609</td>
+      <td>22.82%</td>
+      <td>+13.03 pp</td>
+    </tr>
+    <tr>
+      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>72,633</td>
+      <td>68.37%</td>
+      <td>96,828</td>
+      <td>65.74%</td>
+      <td>+2.63 pp</td>
+    </tr>
+  </tbody>
+</table>
+<h4 style="margin:14px 0 4px 0">sort</h4>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        loaded sort<br>
+        <span class="muted" style="font-weight:400">(n=53,339)</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        not loaded sort<br>
+        <span class="muted" style="font-weight:400">(n=200,193)</span>
+      </th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>DAY_VIEW_SORT_USED</td>
+      <td>18,374</td>
+      <td>34.45%</td>
+      <td>56,165</td>
+      <td>28.06%</td>
+      <td>+6.39 pp</td>
+    </tr>
+    <tr>
+      <td>DAY_VIEW_HOTEL_CARD_CLICKED</td>
+      <td>35,390</td>
+      <td>66.35%</td>
+      <td>134,071</td>
+      <td>66.97%</td>
+      <td>-0.62 pp</td>
+    </tr>
+  </tbody>
+</table>
+</section>
+
 <section id="appendix">
 <h2>Appendix</h2>
 
@@ -371,7 +710,7 @@
 </section>
 
 <footer>
-  Generated 2026-05-23 07:52:15 UTC
+  Generated 2026-05-25 08:28:27 UTC
   · Source: ots_chat.csv + redirects.csv
   · Plotly bundle inlined for offline viewing
 </footer>

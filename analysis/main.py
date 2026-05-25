@@ -32,7 +32,7 @@ from analysis.render import (
     render_report,
 )
 
-DEFAULT_EXPERIMENT = "chat-box-auto-open"
+DEFAULT_EXPERIMENT = "ai-filter-entrance"
 
 
 def _now() -> float:
@@ -158,12 +158,27 @@ def main(argv: list[str] | None = None) -> int:
             _stage(args.verbose, "map", "map usage analysis computed", t0)
 
         t0 = _now()
+        entrance_section = None
+        entrance_analysis_path = experiment_root / "entrance_analysis.py"
+        if entrance_analysis_path.exists():
+            spec = importlib.util.spec_from_file_location("entrance_analysis", entrance_analysis_path)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            entrance_section = mod.compute(data_dir, bundle.redirects, excluded)
+            _stage(args.verbose, "entrance", "entrance position analysis computed", t0)
+
+        t0 = _now()
         exec_summary = build_exec_summary(eng_metrics, funnel)
         map_tests = (
             len(map_section.exposure_metrics)
             + len(map_section.funnel_metrics)
         ) if map_section is not None else 0
-        total_tests = len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent) + 1 + 1 + map_tests
+        # Entrance section contributes 0 z-tests (all blocks are descriptive
+        # per-entrance comparisons, not A/B hypothesis tests).
+        total_tests = (
+            len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent)
+            + 1 + 1 + map_tests
+        )
         ctx = ReportContext(
             experiment_name=args.experiment,
             generated_at=make_generated_at(),
@@ -185,6 +200,7 @@ def main(argv: list[str] | None = None) -> int:
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
             map_section=map_section,
+            entrance_section=entrance_section,
         )
         size_bytes = render_report(ctx, output_path)
         _stage(

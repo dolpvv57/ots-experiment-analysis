@@ -350,6 +350,143 @@
 </section>
 {% endif %}
 
+{# ============== ENTRANCE POSITION (ai-filter-entrance, conditional) ============== #}
+{% if ctx.entrance_section %}
+<section id="entrance-analysis">
+<h2>Entrance Position Analysis</h2>
+<p class="muted">
+  Variant-agnostic throughout: every metric is sliced by entrance
+  (<code>loaded_area</code>), not by A/B. The 4 entrance loader populations
+  overlap (e.g. a user who loaded <em>inline</em> may also have loaded
+  <em>map</em>); each cell is a within-entrance rate.
+</p>
+
+<h3>Block 1: Per-entrance CTR &amp; redirect rate</h3>
+<p class="muted">
+  Descriptive ranking of the 4 entrances. <br>
+  CTR = clicked utids / loaded utids. <br>
+  Redirect rate (clickers) = clickers with any utid match in
+  <code>redirects.csv</code> / clickers. 95% Wilson CIs in brackets.
+</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th>Entrance</th>
+      <th>Loaded users</th>
+      <th>Clicked users</th>
+      <th>CTR</th>
+      <th>CTR 95% CI</th>
+      <th>Redirect (clickers)</th>
+      <th>Redirect rate (clickers)</th>
+      <th>Redirect 95% CI</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.entrance_section.per_entrance %}
+    <tr>
+      <td>{{ m.entrance }}</td>
+      <td>{{ "{:,}".format(m.loaded_users) }}</td>
+      <td>{{ "{:,}".format(m.clicked_users) }}</td>
+      <td>{{ m.ctr_per_user|fmt_pct }}</td>
+      <td>[{{ m.ctr_ci_low|fmt_pct }}, {{ m.ctr_ci_high|fmt_pct }}]</td>
+      <td>{{ "{:,}".format(m.redirected_clickers) }}</td>
+      <td>{{ m.redirect_rate_clickers|fmt_pct }}</td>
+      <td>[{{ m.redirect_ci_low|fmt_pct }}, {{ m.redirect_ci_high|fmt_pct }}]</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Block 2: Native feature usage by entrance</h3>
+<p class="muted">
+  For each entrance, % of its loaded utids who fired the native action at
+  least once. Compares 4 entrances side-by-side; per-column denominator
+  (loader-set size) shown in the header.
+</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      {% for e in ctx.entrance_section.entrance_names %}
+      <th colspan="2" style="text-align:center">
+        {{ e }}<br>
+        <span class="muted" style="font-weight:400">(loaded={{ "{:,}".format(ctx.entrance_section.entrance_loaders[e]) }})</span>
+      </th>
+      {% endfor %}
+    </tr>
+    <tr>
+      {% for e in ctx.entrance_section.entrance_names %}
+      <th>users</th><th>rate</th>
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in ctx.entrance_section.native_event_rates %}
+    <tr>
+      <td>{{ row.event }}</td>
+      {% for e in ctx.entrance_section.entrance_names %}
+      {% set c = row.cells[e] %}
+      <td>{{ "{:,}".format(c.numerator) }}</td>
+      <td>{{ c.rate|fmt_pct }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Block 3: With vs without each entrance (active users only)</h3>
+<p class="muted">
+  Population restricted to <strong>active utids</strong> — those who
+  triggered at least one native event (FILTERS_USED, SORT_USED, MAP_*,
+  HOTEL_CARD_CLICKED). This filters out passively-loaded users (e.g. B-group
+  users whose filter sidebar auto-loaded but who never interacted), so the
+  loaded-vs-not-loaded comparison reflects entrance position rather than
+  exposure-mechanism asymmetry.
+  <br><br>
+  For each entrance, compare the relevant native-event rates among active
+  utids who <em>loaded that entrance</em> vs active utids who <em>did not
+  load it</em> (but did load some other entrance — i.e. saw the chat-box
+  elsewhere). Δ&nbsp;=&nbsp;loaded&nbsp;rate&nbsp;−&nbsp;not-loaded&nbsp;rate.
+</p>
+
+{% for tbl in ctx.entrance_section.impact_tables %}
+<h4 style="margin:14px 0 4px 0">{{ tbl.entrance }}</h4>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2" style="vertical-align:middle">Event</th>
+      <th colspan="2" style="text-align:center">
+        loaded {{ tbl.entrance }}<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(tbl.loaded_users) }})</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        not loaded {{ tbl.entrance }}<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(tbl.not_loaded_users) }})</span>
+      </th>
+      <th rowspan="2" style="vertical-align:middle">Δ (pp)</th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in tbl.rows %}
+    <tr>
+      <td>{{ r.event }}</td>
+      <td>{{ "{:,}".format(r.loaded_event_users) }}</td>
+      <td>{{ r.loaded_rate|fmt_pct }}</td>
+      <td>{{ "{:,}".format(r.not_loaded_event_users) }}</td>
+      <td>{{ r.not_loaded_rate|fmt_pct }}</td>
+      <td>{{ r.abs_diff|fmt_pp }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endfor %}
+</section>
+{% endif %}
+
 {# ============== APPENDIX ============== #}
 <section id="appendix">
 <h2>Appendix</h2>

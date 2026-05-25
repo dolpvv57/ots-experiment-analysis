@@ -133,6 +133,89 @@ class MapSection:
 
 
 @dataclass(frozen=True)
+class EntrancePerformanceMetric:
+    """Block 1 row for the ai-filter-entrance per-entrance ranking.
+
+    Each entrance is treated as a single descriptive arm keyed by
+    `loaded_area`. No A/B framing — every cell is a within-entrance rate.
+    """
+
+    entrance: str           # "inline" | "map" | "filter" | "sort"
+    loaded_users: int
+    clicked_users: int
+    ctr_per_user: float
+    ctr_ci_low: float
+    ctr_ci_high: float
+    redirected_clickers: int
+    redirect_rate_clickers: float
+    redirect_ci_low: float
+    redirect_ci_high: float
+
+
+@dataclass(frozen=True)
+class PerEntranceCell:
+    """One (event/subset × entrance) cell."""
+
+    numerator: int
+    denominator: int
+    rate: float
+
+
+@dataclass(frozen=True)
+class PerEntranceEventRow:
+    """Block 2 row: native-event usage rate, one cell per entrance."""
+
+    event: str
+    cells: dict[str, PerEntranceCell]  # entrance name -> cell
+
+
+@dataclass(frozen=True)
+class EntranceImpactRow:
+    """One (event) row inside an EntranceImpactTable.
+
+    Compares the event rate among utids who loaded this entrance vs utids
+    who did NOT load it (but loaded some other entrance).
+    """
+
+    event: str
+    loaded_event_users: int       # numerator for "loaded entrance" subset
+    loaded_rate: float
+    not_loaded_event_users: int   # numerator for "not loaded entrance" subset
+    not_loaded_rate: float
+    abs_diff: float                # loaded_rate − not_loaded_rate (proportion units)
+
+
+@dataclass(frozen=True)
+class EntranceImpactTable:
+    """Per-entrance comparison: behavior with vs without the chat-box entrance
+    at this position. Shows only the events that are semantically tied to the
+    entrance's location (e.g. filter entrance compares FILTERS_USED).
+    """
+
+    entrance: str               # "inline" | "map" | "filter" | "sort"
+    loaded_users: int           # constant denominator for "loaded entrance" col
+    not_loaded_users: int       # constant denominator for "not loaded entrance" col
+    rows: list[EntranceImpactRow]
+
+
+@dataclass(frozen=True)
+class EntranceSection:
+    """All entrance-analysis outputs for the ai-filter-entrance report.
+
+    Variant-agnostic throughout: every metric is sliced by entrance
+    (loaded_area), not by A/B. The 4 entrance loader populations overlap
+    (e.g. an A-group user typically loads both inline and map), so each
+    cell is a within-entrance rate.
+    """
+
+    entrance_names: list[str]            # ordered: ["inline","map","filter","sort"]
+    entrance_loaders: dict[str, int]     # entrance -> # distinct loaded utids
+    per_entrance: list[EntrancePerformanceMetric]              # block 1: 4 rows
+    native_event_rates: list[PerEntranceEventRow]              # block 2: 5 rows
+    impact_tables: list[EntranceImpactTable]                   # block 2 add-on: 4 tables
+
+
+@dataclass(frozen=True)
 class DailyTrend:
     """One of the four daily-trend charts.
 
