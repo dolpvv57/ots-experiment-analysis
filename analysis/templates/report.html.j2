@@ -356,14 +356,14 @@
 <h2>Entrance Position Analysis</h2>
 <p class="muted">
   Variant-agnostic throughout: every metric is sliced by entrance
-  (<code>loaded_area</code>), not by A/B. The 4 entrance loader populations
+  (<code>loaded_area</code>), not by A/B. The {{ ctx.entrance_section.entrance_names|length }} entrance loader populations
   overlap (e.g. a user who loaded <em>inline</em> may also have loaded
   <em>map</em>); each cell is a within-entrance rate.
 </p>
 
 <h3>Block 1: Per-entrance CTR &amp; redirect rate</h3>
 <p class="muted">
-  Descriptive ranking of the 4 entrances. <br>
+  Descriptive ranking of the {{ ctx.entrance_section.entrance_names|length }} entrances. <br>
   CTR = clicked utids / loaded utids. <br>
   Redirect rate (clickers) = clickers with any utid match in
   <code>redirects.csv</code> / clickers. 95% Wilson CIs in brackets.
@@ -397,10 +397,69 @@
   </tbody>
 </table>
 
-<h3>Block 2: Native feature usage by entrance</h3>
+<h3>Block 2: Native Feature Usage by Variant Group (A vs B)</h3>
+<p class="muted">
+  A group: utids who loaded <em>inline</em> or <em>map</em> only (not filter / search summary).<br>
+  B group: utids who loaded <em>filter</em> or <em>search summary</em> only (not inline / map).<br>
+  Overlap between groups is excluded as dirty data.
+</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="3" style="vertical-align:middle">Event</th>
+      <th colspan="4" style="text-align:center; border-bottom:1px solid #ccc">A</th>
+      <th colspan="4" style="text-align:center; border-bottom:1px solid #ccc">B</th>
+    </tr>
+    <tr>
+      <th colspan="2" style="text-align:center">
+        chat-loaded only<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(ctx.entrance_section.ab_group_sizes["A"]) }})</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        all users<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(ctx.entrance_section.ab_group_sizes["A_all"]) }})</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        chat-loaded only<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(ctx.entrance_section.ab_group_sizes["B"]) }})</span>
+      </th>
+      <th colspan="2" style="text-align:center">
+        all users<br>
+        <span class="muted" style="font-weight:400">(n={{ "{:,}".format(ctx.entrance_section.ab_group_sizes["B_all"]) }})</span>
+      </th>
+    </tr>
+    <tr>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+      <th>users</th><th>rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% set event_labels = {
+      "DAY_VIEW_FILTERS_USED":      "FILTERS_USED",
+      "DAY_VIEW_SORT_USED":         "SORT_USED",
+      "MAP_MOVING_DAY_VIEW":        "MAP_MOVING",
+      "MAP_HOTEL_MARKER_CLICK":     "MAP_HOTEL_CLICK",
+      "DAY_VIEW_HOTEL_CARD_CLICKED":"HOTEL_CARD_CLICK"
+    } %}
+    {% for row in ctx.entrance_section.native_event_ab_rates %}
+    <tr>
+      <td>{{ event_labels.get(row.event, row.event) }}</td>
+      {% for g in ["A", "A_all", "B", "B_all"] %}
+      {% set c = row.cells[g] %}
+      <td>{{ "{:,}".format(c.numerator) }}</td>
+      <td>{{ c.rate|fmt_pct }}</td>
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Block 3: Native Feature Usage by Entrance</h3>
 <p class="muted">
   For each entrance, % of its loaded utids who fired the native action at
-  least once. Compares 4 entrances side-by-side; per-column denominator
+  least once. Compares {{ ctx.entrance_section.entrance_names|length }} entrances side-by-side; per-column denominator
   (loader-set size) shown in the header.
 </p>
 <table style="width:auto">
@@ -441,7 +500,7 @@
   </tbody>
 </table>
 
-<h3>Block 3: With vs without each entrance (active users only)</h3>
+<h3>Block 4: With vs Without Each Entrance (Active Users Only)</h3>
 <p class="muted">
   Population restricted to <strong>active utids</strong> — those who
   triggered at least one native event (FILTERS_USED, SORT_USED, MAP_*,

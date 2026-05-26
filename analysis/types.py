@@ -220,6 +220,8 @@ class EntranceSection:
     per_entrance: list[EntrancePerformanceMetric]              # block 1: 4 rows
     native_event_rates: list[PerEntranceEventRow]              # block 2: 5 rows
     impact_tables: list[EntranceImpactTable]                   # block 2 add-on: 4 tables
+    native_event_ab_rates: list[PerEntranceEventRow]           # block 2 A/B table: cells keyed "A"/"B"
+    ab_group_sizes: dict[str, int]                             # "A" -> n, "B" -> n
 
 
 @dataclass(frozen=True)

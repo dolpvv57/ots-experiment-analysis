@@ -35,14 +35,27 @@ _LOADED_ACTION = "CHAT_BOX_ENTRY_LOADED"
 _CLICK_ACTION = "CHAT_BOX_ENTRY_CLICK"
 
 # Ordered: report tables iterate in this order.
-_ENTRANCE_NAMES: list[str] = ["inline", "map", "filter", "sort"]
+_ENTRANCE_NAMES: list[str] = ["inline", "map", "filter (ps)", "filter (non-ps)", "search summary"]
+
+# traffic_source values that identify Parallel Search traffic
+_PS_TRAFFIC_SOURCES: frozenset[str] = frozenset({"parallel_search_flight_seo", "parallel_search"})
 
 # entrance label -> (loaded_area, set of click areas)
 _ENTRANCES: dict[str, tuple[str, frozenset[str]]] = {
-    "inline": ("INLINE", frozenset({"SEARCH_INPUT_IN_FEEDS", "SUGGESTION_BUTTON"})),
-    "map":    ("ON_MAP", frozenset({"CHAT_BUTTON_ON_MAP"})),
-    "filter": ("SIDEBAR_FILTER_PANEL", frozenset({"CHAT_BOX_ON_FILTER_PANEL"})),
-    "sort":   ("SEARCH_SUMMARY", frozenset({"CHAT_BUTTON_ON_SEARCH_SUMMARY"})),
+    "inline":           ("INLINE", frozenset({"SEARCH_INPUT_IN_FEEDS", "SUGGESTION_BUTTON"})),
+    "map":              ("ON_MAP", frozenset({"CHAT_BUTTON_ON_MAP"})),
+    "filter (ps)":      ("SIDEBAR_FILTER_PANEL", frozenset({"CHAT_BOX_ON_FILTER_PANEL"})),
+    "filter (non-ps)":  ("SIDEBAR_FILTER_PANEL", frozenset({"CHAT_BOX_ON_FILTER_PANEL"})),
+    "search summary":   ("SEARCH_SUMMARY", frozenset({"CHAT_BUTTON_ON_SEARCH_SUMMARY"})),
+}
+
+# ps_filter: True = PS only, False = non-PS only, None = no filter
+_ENTRANCE_PS_FILTER: dict[str, bool | None] = {
+    "inline":           None,
+    "map":              None,
+    "filter (ps)":      True,
+    "filter (non-ps)":  False,
+    "search summary":   None,
 }
 
 _NATIVE_EVENTS: list[str] = [
@@ -56,10 +69,11 @@ _NATIVE_EVENTS: list[str] = [
 # Impact tables: per entrance, the events whose usage we expect to be
 # affected by placing/not placing a chat-box entrance at that position.
 _IMPACT_EVENTS: dict[str, list[str]] = {
-    "inline": ["DAY_VIEW_HOTEL_CARD_CLICKED"],
-    "map":    ["MAP_MOVING_DAY_VIEW", "MAP_HOTEL_MARKER_CLICK", "DAY_VIEW_HOTEL_CARD_CLICKED"],
-    "filter": ["DAY_VIEW_FILTERS_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
-    "sort":   ["DAY_VIEW_SORT_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
+    "inline":           ["DAY_VIEW_HOTEL_CARD_CLICKED"],
+    "map":              ["MAP_MOVING_DAY_VIEW", "MAP_HOTEL_MARKER_CLICK", "DAY_VIEW_HOTEL_CARD_CLICKED"],
+    "filter (ps)":      ["DAY_VIEW_FILTERS_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
+    "filter (non-ps)":  ["DAY_VIEW_FILTERS_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
+    "search summary":   ["DAY_VIEW_SORT_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
 }
 
 
@@ -102,12 +116,14 @@ def compute(
         usecols=[
             "utid", "action_type",
             "chat_box_entry_loaded", "chat_box_entry_click",
+            "traffic_source",
         ],
         dtype={
             "utid": "string",
             "action_type": "category",
             "chat_box_entry_loaded": "string",
             "chat_box_entry_click": "string",
+            "traffic_source": "string",
         },
     )
     actions = actions[~actions["utid"].isin(excluded_utids)]
@@ -129,12 +145,19 @@ def compute(
     clicked_users_by_entrance: dict[str, set[str]] = {}
     for entrance in _ENTRANCE_NAMES:
         loaded_area, click_areas = _ENTRANCES[entrance]
-        loaded_users_by_entrance[entrance] = set(
-            loaded_rows.loc[loaded_rows["area"] == loaded_area, "utid"].dropna()
-        )
-        clicked_users_by_entrance[entrance] = set(
-            click_rows.loc[click_rows["area"].isin(click_areas), "utid"].dropna()
-        )
+        ps_filter = _ENTRANCE_PS_FILTER[entrance]
+
+        loaded_mask = loaded_rows["area"] == loaded_area
+        click_mask = click_rows["area"].isin(click_areas)
+        if ps_filter is True:
+            loaded_mask = loaded_mask & loaded_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
+            click_mask = click_mask & click_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
+        elif ps_filter is False:
+            loaded_mask = loaded_mask & ~loaded_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
+            click_mask = click_mask & ~click_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
+
+        loaded_users_by_entrance[entrance] = set(loaded_rows.loc[loaded_mask, "utid"].dropna())
+        clicked_users_by_entrance[entrance] = set(click_rows.loc[click_mask, "utid"].dropna())
 
     entrance_loaders: dict[str, int] = {
         e: len(loaded_users_by_entrance[e]) for e in _ENTRANCE_NAMES
@@ -256,10 +279,61 @@ def compute(
             rows=rows,
         ))
 
+    # ---- block 2 A/B table: native-event rates by variant group ----
+    #
+    # A group: utids who loaded inline or map, but NOT filter or search summary.
+    # B group: utids who loaded filter or search summary, but NOT inline or map.
+    # Overlap (dirty data) is excluded from both groups.
+    ab_group_a = (
+        loaded_users_by_entrance["inline"] | loaded_users_by_entrance["map"]
+    ) - (
+        loaded_users_by_entrance["filter (ps)"]
+        | loaded_users_by_entrance["filter (non-ps)"]
+        | loaded_users_by_entrance["search summary"]
+    )
+    ab_group_b = (
+        loaded_users_by_entrance["filter (ps)"]
+        | loaded_users_by_entrance["filter (non-ps)"]
+        | loaded_users_by_entrance["search summary"]
+    ) - (
+        loaded_users_by_entrance["inline"] | loaded_users_by_entrance["map"]
+    )
+    # All utids per variant (full population, for the "all users" columns)
+    ots_chat = pd.read_csv(
+        data_dir / "ots_chat.csv",
+        usecols=["utid", "variant"],
+        dtype={"utid": "string", "variant": "string"},
+    )
+    ots_chat = ots_chat[~ots_chat["utid"].isin(excluded_utids)]
+    all_a_utids = set(ots_chat.loc[ots_chat["variant"] == "A", "utid"].dropna())
+    all_b_utids = set(ots_chat.loc[ots_chat["variant"] == "B", "utid"].dropna())
+
+    ab_group_sizes = {
+        "A": len(ab_group_a),
+        "B": len(ab_group_b),
+        "A_all": len(all_a_utids),
+        "B_all": len(all_b_utids),
+    }
+
+    native_event_ab_rates: list[PerEntranceEventRow] = []
+    for event in _NATIVE_EVENTS:
+        ev_users = event_users_cache[event]
+        native_event_ab_rates.append(PerEntranceEventRow(
+            event=event,
+            cells={
+                "A": _cell(len(ab_group_a & ev_users), len(ab_group_a)),
+                "B": _cell(len(ab_group_b & ev_users), len(ab_group_b)),
+                "A_all": _cell(len(all_a_utids & ev_users), len(all_a_utids)),
+                "B_all": _cell(len(all_b_utids & ev_users), len(all_b_utids)),
+            },
+        ))
+
     return EntranceSection(
         entrance_names=_ENTRANCE_NAMES,
         entrance_loaders=entrance_loaders,
         per_entrance=per_entrance,
         native_event_rates=native_event_rates,
         impact_tables=impact_tables,
+        native_event_ab_rates=native_event_ab_rates,
+        ab_group_sizes=ab_group_sizes,
     )
