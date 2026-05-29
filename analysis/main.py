@@ -19,6 +19,7 @@ from analysis.load import (
     compute_variant_population,
     load_data,
 )
+from analysis.plugin import PluginSection
 from analysis.redirects import (
     build_redirect_attributed,
     compute_redirect_funnel_metric,
@@ -148,36 +149,30 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         t0 = _now()
-        map_section = None
-        map_analysis_path = experiment_root / "map_analysis.py"
-        if map_analysis_path.exists():
-            spec = importlib.util.spec_from_file_location("map_analysis", map_analysis_path)
+        plugin_sections: list[PluginSection] = []
+        plugin_path = experiment_root / "plugin.py"
+        if plugin_path.exists():
+            spec = importlib.util.spec_from_file_location("experiment_plugin", plugin_path)
             mod = importlib.util.module_from_spec(spec)
+            sys.modules["experiment_plugin"] = mod
             spec.loader.exec_module(mod)
-            map_section = mod.compute(data_dir, bundle.redirects, excluded)
-            _stage(args.verbose, "map", "map usage analysis computed", t0)
-
-        t0 = _now()
-        entrance_section = None
-        entrance_analysis_path = experiment_root / "entrance_analysis.py"
-        if entrance_analysis_path.exists():
-            spec = importlib.util.spec_from_file_location("entrance_analysis", entrance_analysis_path)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            entrance_section = mod.compute(data_dir, bundle.redirects, excluded)
-            _stage(args.verbose, "entrance", "entrance position analysis computed", t0)
+            section = mod.compute(bundle, excluded)
+            charts = mod.build_charts(section) if hasattr(mod, "build_charts") else {}
+            template_path = plugin_path.parent / mod.TEMPLATE_FRAGMENT
+            plugin_sections.append(PluginSection(
+                section=section,
+                template_path=template_path,
+                charts=charts,
+                test_count=mod.count_tests(section),
+            ))
+            _stage(args.verbose, "plugin", f"{plugin_path} computed", t0)
 
         t0 = _now()
         exec_summary = build_exec_summary(eng_metrics, funnel)
-        map_tests = (
-            len(map_section.exposure_metrics)
-            + len(map_section.funnel_metrics)
-        ) if map_section is not None else 0
-        # Entrance section contributes 0 z-tests (all blocks are descriptive
-        # per-entrance comparisons, not A/B hypothesis tests).
+        plugin_tests = sum(ps.test_count for ps in plugin_sections)
         total_tests = (
             len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent)
-            + 1 + 1 + map_tests
+            + 1 + 1 + plugin_tests
         )
         ctx = ReportContext(
             experiment_name=args.experiment,
@@ -199,8 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             exec_summary=exec_summary,
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
-            map_section=map_section,
-            entrance_section=entrance_section,
+            plugin_sections=plugin_sections,
         )
         size_bytes = render_report(ctx, output_path)
         _stage(

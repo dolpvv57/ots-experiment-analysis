@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -15,12 +15,10 @@ import plotly.io as pio
 from plotly.offline import get_plotlyjs
 from plotly.subplots import make_subplots
 
+from analysis.plugin import PluginSection
 from analysis.types import (
     DailyTrend,
     EngagementMetric,
-    EntranceSection,
-    MapRateMetric,
-    MapSection,
     RedirectFunnelMetric,
     RedirectMetric,
     RoundsMetric,
@@ -207,7 +205,7 @@ def build_trend_chart(trend: DailyTrend) -> str:
 
 
 def build_map_rate_chart(
-    metrics: list[MapRateMetric], title: str, div_id: str
+    metrics: list, title: str, div_id: str
 ) -> str:
     labels = [m.label for m in metrics]
     max_rate = max((max(m.rate_A, m.rate_B) for m in metrics), default=1.0)
@@ -335,8 +333,7 @@ class ReportContext:
 
     chat_rows: int
     redirect_rows: int
-    map_section: MapSection | None = None
-    entrance_section: EntranceSection | None = None
+    plugin_sections: list[PluginSection] = field(default_factory=list)
 
 
 def render_report(context: ReportContext, output_path: Path) -> int:
@@ -388,17 +385,12 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         context.redirect_trends[1].chart_id: build_trend_chart(context.redirect_trends[1]),
     }
 
-    map_charts: dict[str, str] = {}
-    if context.map_section is not None:
-        map_charts["map_exposure"] = build_map_rate_chart(
-            context.map_section.exposure_metrics,
-            "Map usage rate by variant",
-            "chart-map-exposure",
-        )
-        map_charts["map_funnel"] = build_map_rate_chart(
-            context.map_section.funnel_metrics,
-            "Redirect rate by map-usage segment and variant",
-            "chart-map-funnel",
+    plugin_section_htmls: list[str] = []
+    for ps in context.plugin_sections:
+        fragment_src = ps.template_path.read_text(encoding="utf-8")
+        fragment_tpl = env.from_string(fragment_src)
+        plugin_section_htmls.append(
+            fragment_tpl.render(section=ps.section, charts=ps.charts)
         )
 
     template = env.get_template("report.html.j2")
@@ -409,8 +401,8 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         rounds_chart_html=rounds_chart_html,
         redirect_charts=redirect_charts,
         trend_charts=trend_charts,
-        map_charts=map_charts,
         variant_colors=VARIANT_COLORS,
+        plugin_section_htmls=plugin_section_htmls,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(html, encoding="utf-8")
