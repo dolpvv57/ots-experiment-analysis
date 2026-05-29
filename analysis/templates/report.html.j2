@@ -365,8 +365,9 @@
 <p class="muted">
   Descriptive ranking of the {{ ctx.entrance_section.entrance_names|length }} entrances. <br>
   CTR = clicked utids / loaded utids. <br>
-  Redirect rate (clickers) = clickers with any utid match in
-  <code>redirects.csv</code> / clickers. 95% Wilson CIs in brackets.
+  Chat users = loaded utids with <code>CHAT_TYPE_INTENT_RECOGNITION</code> in ots_chat. <br>
+  Chat rate = chat users / loaded users. <br>
+  Redirect rate = redirected users / clickers (or chat users).
 </p>
 <table style="width:auto">
   <thead>
@@ -375,10 +376,12 @@
       <th>Loaded users</th>
       <th>Clicked users</th>
       <th>CTR</th>
-      <th>CTR 95% CI</th>
+      <th>Chat users</th>
+      <th>Chat rate</th>
       <th>Redirect (clickers)</th>
       <th>Redirect rate (clickers)</th>
-      <th>Redirect 95% CI</th>
+      <th>Redirect (chat users)</th>
+      <th>Redirect rate (chat users)</th>
     </tr>
   </thead>
   <tbody>
@@ -388,10 +391,12 @@
       <td>{{ "{:,}".format(m.loaded_users) }}</td>
       <td>{{ "{:,}".format(m.clicked_users) }}</td>
       <td>{{ m.ctr_per_user|fmt_pct }}</td>
-      <td>[{{ m.ctr_ci_low|fmt_pct }}, {{ m.ctr_ci_high|fmt_pct }}]</td>
+      <td>{{ "{:,}".format(m.chat_users) }}</td>
+      <td>{{ m.chat_rate|fmt_pct }}</td>
       <td>{{ "{:,}".format(m.redirected_clickers) }}</td>
       <td>{{ m.redirect_rate_clickers|fmt_pct }}</td>
-      <td>[{{ m.redirect_ci_low|fmt_pct }}, {{ m.redirect_ci_high|fmt_pct }}]</td>
+      <td>{{ "{:,}".format(m.redirected_chat_users) }}</td>
+      <td>{{ m.redirect_rate_chat_users|fmt_pct }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -409,6 +414,7 @@
       <th rowspan="3" style="vertical-align:middle">Event</th>
       <th colspan="4" style="text-align:center; border-bottom:1px solid #ccc">A</th>
       <th colspan="4" style="text-align:center; border-bottom:1px solid #ccc">B</th>
+      <th colspan="3" style="text-align:center; border-bottom:1px solid #ccc">All users A vs B</th>
     </tr>
     <tr>
       <th colspan="2" style="text-align:center">
@@ -427,6 +433,9 @@
         all users<br>
         <span class="muted" style="font-weight:400">(n={{ "{:,}".format(ctx.entrance_section.ab_group_sizes["B_all"]) }})</span>
       </th>
+      <th rowspan="2" style="vertical-align:middle">Rel. lift</th>
+      <th rowspan="2" style="vertical-align:middle">p-value</th>
+      <th rowspan="2" style="vertical-align:middle">Verdict</th>
     </tr>
     <tr>
       <th>users</th><th>rate</th>
@@ -451,6 +460,14 @@
       <td>{{ "{:,}".format(c.numerator) }}</td>
       <td>{{ c.rate|fmt_pct }}</td>
       {% endfor %}
+      {% if row.all_users_ab_stats %}
+      {% set s = row.all_users_ab_stats %}
+      <td>{{ s.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ s.p_value|fmt_p }}</td>
+      <td>{{ s.directional_verdict }} / {{ s.significance_verdict.replace('_', ' ') }}</td>
+      {% else %}
+      <td colspan="3" style="text-align:center">—</td>
+      {% endif %}
     </tr>
     {% endfor %}
   </tbody>

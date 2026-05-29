@@ -144,12 +144,12 @@ class EntrancePerformanceMetric:
     loaded_users: int
     clicked_users: int
     ctr_per_user: float
-    ctr_ci_low: float
-    ctr_ci_high: float
+    chat_users: int          # loaded utids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat
+    chat_rate: float         # chat_users / loaded_users
     redirected_clickers: int
     redirect_rate_clickers: float
-    redirect_ci_low: float
-    redirect_ci_high: float
+    redirected_chat_users: int
+    redirect_rate_chat_users: float
 
 
 @dataclass(frozen=True)
@@ -164,11 +164,22 @@ class PerEntranceCell:
 
 
 @dataclass(frozen=True)
+class ABStats:
+    """Statistical comparison result for A_all vs B_all in Block 2."""
+
+    rel_lift_pct: float
+    p_value: float
+    directional_verdict: DirectionalVerdict
+    significance_verdict: SignificanceVerdict
+
+
+@dataclass(frozen=True)
 class PerEntranceEventRow:
     """Block 2 row: native-event usage rate, one cell per entrance."""
 
     event: str
     cells: dict[str, PerEntranceCell]  # entrance name -> cell
+    all_users_ab_stats: ABStats | None = None
 
 
 @dataclass(frozen=True)

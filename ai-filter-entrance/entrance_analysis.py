@@ -20,9 +20,9 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from statsmodels.stats.proportion import proportion_confint
-
+from analysis.stats import directional_verdict, two_proportion_z_test
 from analysis.types import (
+    ABStats,
     EntranceImpactRow,
     EntranceImpactTable,
     EntrancePerformanceMetric,
@@ -76,12 +76,6 @@ _IMPACT_EVENTS: dict[str, list[str]] = {
     "search summary":   ["DAY_VIEW_SORT_USED", "DAY_VIEW_HOTEL_CARD_CLICKED"],
 }
 
-
-def _wilson(num: int, den: int) -> tuple[float, float]:
-    if den <= 0:
-        return float("nan"), float("nan")
-    low, high = proportion_confint(num, den, alpha=0.05, method="wilson")
-    return float(low), float(high)
 
 
 def _cell(num: int, den: int, redirect_num: int = 0) -> PerEntranceCell:
@@ -140,6 +134,18 @@ def compute(
 
     redirected_utids: set[str] = set(redirects_df["utid"].dropna())
 
+    ots_chat_early = pd.read_csv(
+        data_dir / "ots_chat.csv",
+        usecols=["utid", "chat_type"],
+        dtype={"utid": "string", "chat_type": "string"},
+    )
+    ots_chat_early = ots_chat_early[~ots_chat_early["utid"].isin(excluded_utids)]
+    intent_utids: set[str] = set(
+        ots_chat_early.loc[
+            ots_chat_early["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION", "utid"
+        ].dropna()
+    )
+
     # Per-entrance loaded/clicked user sets (variant-agnostic).
     loaded_users_by_entrance: dict[str, set[str]] = {}
     clicked_users_by_entrance: dict[str, set[str]] = {}
@@ -171,26 +177,33 @@ def compute(
         clicked_users = clicked_users_by_entrance[entrance]
         clicked_in_loaded = clicked_users & loaded_users
         ctr = len(clicked_in_loaded) / len(loaded_users) if loaded_users else float("nan")
-        ctr_low, ctr_high = _wilson(len(clicked_in_loaded), len(loaded_users))
 
-        redirected_clickers = clicked_users & redirected_utids
+        chat_users_set = loaded_users & intent_utids
+        chat_rate = len(chat_users_set) / len(loaded_users) if loaded_users else float("nan")
+
+        redirected_clickers = clicked_in_loaded & redirected_utids
         rr = (
-            len(redirected_clickers) / len(clicked_users)
-            if clicked_users else float("nan")
+            len(redirected_clickers) / len(clicked_in_loaded)
+            if clicked_in_loaded else float("nan")
         )
-        rr_low, rr_high = _wilson(len(redirected_clickers), len(clicked_users))
+
+        redirected_chat = chat_users_set & redirected_utids
+        rr_chat = (
+            len(redirected_chat) / len(chat_users_set)
+            if chat_users_set else float("nan")
+        )
 
         per_entrance.append(EntrancePerformanceMetric(
             entrance=entrance,
             loaded_users=len(loaded_users),
-            clicked_users=len(clicked_users),
+            clicked_users=len(clicked_in_loaded),
             ctr_per_user=ctr,
-            ctr_ci_low=ctr_low,
-            ctr_ci_high=ctr_high,
+            chat_users=len(chat_users_set),
+            chat_rate=chat_rate,
             redirected_clickers=len(redirected_clickers),
             redirect_rate_clickers=rr,
-            redirect_ci_low=rr_low,
-            redirect_ci_high=rr_high,
+            redirected_chat_users=len(redirected_chat),
+            redirect_rate_chat_users=rr_chat,
         ))
 
     # ---- block 2: per-entrance native-event rates ----
@@ -318,14 +331,32 @@ def compute(
     native_event_ab_rates: list[PerEntranceEventRow] = []
     for event in _NATIVE_EVENTS:
         ev_users = event_users_cache[event]
+        num_a_all = len(all_a_utids & ev_users)
+        den_a_all = len(all_a_utids)
+        num_b_all = len(all_b_utids & ev_users)
+        den_b_all = len(all_b_utids)
+        stat = two_proportion_z_test(num_a_all, den_a_all, num_b_all, den_b_all)
+        rate_a_all = num_a_all / den_a_all if den_a_all > 0 else float("nan")
+        rate_b_all = num_b_all / den_b_all if den_b_all > 0 else float("nan")
+        rel_lift = (
+            (rate_b_all - rate_a_all) / rate_a_all * 100
+            if rate_a_all > 0 else float("nan")
+        )
+        all_stats = ABStats(
+            rel_lift_pct=rel_lift,
+            p_value=stat.p_value,
+            directional_verdict=directional_verdict(rel_lift),
+            significance_verdict=stat.significance_verdict,
+        )
         native_event_ab_rates.append(PerEntranceEventRow(
             event=event,
             cells={
                 "A": _cell(len(ab_group_a & ev_users), len(ab_group_a)),
                 "B": _cell(len(ab_group_b & ev_users), len(ab_group_b)),
-                "A_all": _cell(len(all_a_utids & ev_users), len(all_a_utids)),
-                "B_all": _cell(len(all_b_utids & ev_users), len(all_b_utids)),
+                "A_all": _cell(num_a_all, den_a_all),
+                "B_all": _cell(num_b_all, den_b_all),
             },
+            all_users_ab_stats=all_stats,
         ))
 
     return EntranceSection(
