@@ -7,5 +7,4 @@ venv/
 *.egg-info/
 .pytest_cache/
 .coverage
-specs/001-chat-box-auto-open-analysis/report.html
 */data/
