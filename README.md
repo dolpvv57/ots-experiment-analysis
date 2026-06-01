@@ -93,16 +93,21 @@ pytest tests/ -v
 
 ---
 
-## Report Contents @todo
+## Report Contents
 
 Every report includes:
 
-- **Executive summary**: SHIP / DO NOT SHIP / INCONCLUSIVE verdict
-- **Data overview**: row counts, users per variant, excluded utid count
-- **Engagement analysis**: 8 engagement metrics (`SUGGESTIONS × {utid, session, request, correlation}` + `INTENT_RECOGNITION × same`) + mean rounds + daily trend
-- **Redirect analysis**: all-chat redirect rate, INTENT-only redirect rate, funnel redirect rate + daily trend
+- **Summary**: AI-generated verdict placeholder
+- **Data overview**: row counts per file, distinct utids per variant from backend (ots_chat) and frontend (actions)
+- **Engagement analysis**:
+  - Block 1 — Backend chat engagement: INTENT_RECOGNITION rate per dimension (utid, request_id, correlation_id), A/B counts and rates with z-test
+  - Block 2 — Rounds per session: mean and median rounds per INTENT session, Welch's t-test
+  - Block 3 — Frontend funnel: load → click → chat rates per variant, z-test
+- **Redirect analysis**:
+  - Overall redirect: redirect rate across all users per dimension
+  - From chat to redirect: redirect rate among INTENT_RECOGNITION users only per dimension
 - **Experiment-specific section** (appended automatically if the experiment directory contains a `plugin.py`)
-- **Appendix**: methodology notes, multiple-comparisons annotation
+- **Appendix**: methodology notes, multiple-comparisons annotation, excluded utid count
 
 ---
 

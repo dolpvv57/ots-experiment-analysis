@@ -1,9 +1,9 @@
-"""Engagement metrics and engagement daily-trend tables.
+"""Engagement metrics.
 
 Implements:
 - `compute_engagement_metrics`: 8 EngagementMetric rows (2 chat_types × 4 dims).
 - `compute_rounds_metric`: mean/median rounds per chat session, with Welch's t.
-- `compute_engagement_trends`: charts 1 (engagement_abs) and 2 (engagement_ratio).
+- `compute_load_funnel_metric`: load → click / chat funnel from actions.csv.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from analysis.stats import (
     two_proportion_z_test,
     welch_t_test,
 )
-from analysis.types import DailyTrend, EngagementMetric, RoundsMetric
+from analysis.types import EngagementMetric, LoadFunnelMetric, RoundsMetric
 
 CHAT_TYPES = ("CHAT_TYPE_SUGGESTIONS", "CHAT_TYPE_INTENT_RECOGNITION")
 DIMENSIONS = ("utid", "chat_session_id", "request_id", "correlation_id")
@@ -124,85 +124,55 @@ def compute_rounds_metric(chat_with_variant: pd.DataFrame) -> RoundsMetric:
     )
 
 
-def _daily_distinct(
-    df: pd.DataFrame, dimension: str, drop_empty_session: bool
-) -> pd.DataFrame:
-    """Distinct dimension count per (dt, variant) → tidy DataFrame."""
-    if drop_empty_session and dimension == "chat_session_id":
-        df = df[df[dimension].notna() & (df[dimension] != "")]
-    grouped = (
-        df.groupby(["dt", "variant"], observed=True)[dimension]
-        .nunique()
-        .reset_index(name="value")
-    )
-    return grouped
-
-
-def _daily_row_count(df: pd.DataFrame) -> pd.DataFrame:
-    """Row count per (dt, variant) → tidy DataFrame."""
-    grouped = (
-        df.groupby(["dt", "variant"], observed=True)
-        .size()
-        .reset_index(name="value")
-    )
-    return grouped
-
-
-def compute_engagement_trends(
+def compute_load_funnel_metric(
+    actions: pd.DataFrame,
     chat_with_variant: pd.DataFrame,
-) -> tuple[DailyTrend, DailyTrend]:
-    """Charts 1 (engagement_abs) and 2 (engagement_ratio).
+) -> LoadFunnelMetric:
+    """Load → click / chat funnel.
 
-    For chart 2's chat_session_panel, the denominator is the SUGGESTIONS row
-    count per (dt, variant) — since SUGGESTIONS rows have empty chat_session_id,
-    "distinct SUGGESTIONS sessions" is always 0 in real data. The row count is
-    the natural unit for SUGGESTIONS at the session-event granularity.
+    load  = distinct utids with CHAT_BOX_ENTRY_LOADED in actions (denominator).
+    click = distinct utids with CHAT_BOX_ENTRY_CLICK in actions.
+    chat  = distinct utids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat.
+    Rates are click/load and chat/load per variant; p-values compare A vs B.
     """
-    intent = chat_with_variant[
+    loaded = actions[actions["action_type"] == "CHAT_BOX_ENTRY_LOADED"]
+    clicked = actions[actions["action_type"] == "CHAT_BOX_ENTRY_CLICK"]
+    chatted = chat_with_variant[
         chat_with_variant["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"
     ]
-    suggestions = chat_with_variant[
-        chat_with_variant["chat_type"] == "CHAT_TYPE_SUGGESTIONS"
-    ]
 
-    # Chart 1 — absolute INTENT volume.
-    abs_utid = _daily_distinct(intent, "utid", drop_empty_session=False)
-    abs_session = _daily_distinct(intent, "chat_session_id", drop_empty_session=True)
-    chart_abs = DailyTrend(
-        chart_id="engagement_abs",
-        title="Daily INTENT_RECOGNITION volume",
-        y_label="Distinct count",
-        utid_panel=abs_utid,
-        chat_session_panel=abs_session,
+    def _n(df: pd.DataFrame, variant: str) -> int:
+        return int(df[df["variant"] == variant]["utid"].nunique())
+
+    load_a, load_b = _n(loaded, "A"), _n(loaded, "B")
+    click_a, click_b = _n(clicked, "A"), _n(clicked, "B")
+    chat_a, chat_b = _n(chatted, "A"), _n(chatted, "B")
+
+    click_rate_a = click_a / load_a if load_a else float("nan")
+    click_rate_b = click_b / load_b if load_b else float("nan")
+    chat_rate_a = chat_a / load_a if load_a else float("nan")
+    chat_rate_b = chat_b / load_b if load_b else float("nan")
+
+    click_stat = two_proportion_z_test(click_a, load_a, click_b, load_b)
+    chat_stat = two_proportion_z_test(chat_a, load_a, chat_b, load_b)
+
+    return LoadFunnelMetric(
+        load_A=load_a,
+        load_B=load_b,
+        click_A=click_a,
+        click_B=click_b,
+        chat_A=chat_a,
+        chat_B=chat_b,
+        click_rate_A=click_rate_a,
+        click_rate_B=click_rate_b,
+        click_rel_lift_pct=_rel_lift_pct(click_rate_a, click_rate_b),
+        click_p_value=click_stat.p_value,
+        click_directional_verdict=directional_verdict(_rel_lift_pct(click_rate_a, click_rate_b)),
+        click_significance_verdict=click_stat.significance_verdict,
+        chat_rate_A=chat_rate_a,
+        chat_rate_B=chat_rate_b,
+        chat_rel_lift_pct=_rel_lift_pct(chat_rate_a, chat_rate_b),
+        chat_p_value=chat_stat.p_value,
+        chat_directional_verdict=directional_verdict(_rel_lift_pct(chat_rate_a, chat_rate_b)),
+        chat_significance_verdict=chat_stat.significance_verdict,
     )
-
-    # Chart 2 — INTENT / SUGGESTIONS ratio.
-    sug_utid = _daily_distinct(suggestions, "utid", drop_empty_session=False)
-    ratio_utid = _ratio_panel(abs_utid, sug_utid)
-
-    sug_session = _daily_row_count(suggestions)
-    ratio_session = _ratio_panel(abs_session, sug_session)
-    chart_ratio = DailyTrend(
-        chart_id="engagement_ratio",
-        title="Daily INTENT_RECOGNITION ÷ SUGGESTIONS",
-        y_label="Conversion rate",
-        utid_panel=ratio_utid,
-        chat_session_panel=ratio_session,
-    )
-
-    return chart_abs, chart_ratio
-
-
-def _ratio_panel(num: pd.DataFrame, den: pd.DataFrame) -> pd.DataFrame:
-    """(dt, variant) -> num/den, with NaN when den == 0."""
-    merged = num.merge(
-        den, on=["dt", "variant"], how="outer", suffixes=("_num", "_den")
-    )
-    merged["value_num"] = merged["value_num"].fillna(0)
-    merged["value"] = merged.apply(
-        lambda r: r["value_num"] / r["value_den"]
-        if pd.notna(r["value_den"]) and r["value_den"] > 0
-        else float("nan"),
-        axis=1,
-    )
-    return merged[["dt", "variant", "value"]].sort_values(["dt", "variant"]).reset_index(drop=True)

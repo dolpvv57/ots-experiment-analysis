@@ -13,12 +13,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 from plotly.offline import get_plotlyjs
-from plotly.subplots import make_subplots
 
 from analysis.plugin import PluginSection
 from analysis.types import (
-    DailyTrend,
     EngagementMetric,
+    LoadFunnelMetric,
     RedirectFunnelMetric,
     RedirectMetric,
     RoundsMetric,
@@ -157,52 +156,6 @@ def build_rounds_chart(rounds: RoundsMetric) -> str:
     )
 
 
-def _add_trend_traces(fig: go.Figure, panel: pd.DataFrame, col: int, panel_label: str) -> None:
-    for variant in ("A", "B"):
-        sub = panel[panel["variant"] == variant].sort_values("dt")
-        fig.add_trace(
-            go.Scatter(
-                x=sub["dt"],
-                y=sub["value"],
-                mode="lines+markers",
-                name=f"Variant {variant}",
-                legendgroup=variant,
-                showlegend=(col == 1),
-                line=dict(color=VARIANT_COLORS[variant], width=2),
-                marker=dict(size=6),
-            ),
-            row=1,
-            col=col,
-        )
-    fig.update_xaxes(title_text=panel_label, row=1, col=col)
-
-
-def build_trend_chart(trend: DailyTrend) -> str:
-    fig = make_subplots(
-        rows=1,
-        cols=2,
-        subplot_titles=("By utid", "By chat_session_id"),
-        shared_yaxes=False,
-        horizontal_spacing=0.12,
-    )
-    _add_trend_traces(fig, trend.utid_panel, col=1, panel_label="Date (utid panel)")
-    _add_trend_traces(
-        fig, trend.chat_session_panel, col=2, panel_label="Date (chat_session_id panel)"
-    )
-    fig.update_layout(
-        title=trend.title,
-        height=380,
-        margin=dict(l=40, r=20, t=70, b=40),
-        legend=dict(orientation="h", yanchor="bottom", y=1.05, xanchor="right", x=1.0),
-    )
-    fig.update_yaxes(title_text=trend.y_label, row=1, col=1)
-    fig.update_yaxes(title_text=trend.y_label, row=1, col=2)
-    return pio.to_html(
-        fig,
-        include_plotlyjs=False,
-        full_html=False,
-        div_id=f"chart-trend-{trend.chart_id}",
-    )
 
 
 def build_map_rate_chart(
@@ -253,15 +206,15 @@ class ReportContext:
 
     engagement_metrics: list[EngagementMetric]
     rounds_metric: RoundsMetric
+    load_funnel_metric: LoadFunnelMetric | None  # None if actions.csv absent
     redirect_metrics_all: list[RedirectMetric]
     redirect_metrics_intent: list[RedirectMetric]
     redirect_funnel_metric: RedirectFunnelMetric
 
-    engagement_trends: tuple[DailyTrend, DailyTrend]
-    redirect_trends: tuple[DailyTrend, DailyTrend]
-
     chat_rows: int
     redirect_rows: int
+    action_rows: int | None  # None if actions.csv was absent
+    action_population: dict[str, int] | None  # {A: n, B: n} or None
     plugin_sections: list[PluginSection] = field(default_factory=list)
     exec_summary: Optional[ExecSummary] = None  # populated by AI; None → placeholder shown
 
@@ -308,13 +261,6 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         label="Funnel rate (utids with redirect / variant_population)",
         div_id="chart-red-funnel",
     )
-    trend_charts = {
-        context.engagement_trends[0].chart_id: build_trend_chart(context.engagement_trends[0]),
-        context.engagement_trends[1].chart_id: build_trend_chart(context.engagement_trends[1]),
-        context.redirect_trends[0].chart_id: build_trend_chart(context.redirect_trends[0]),
-        context.redirect_trends[1].chart_id: build_trend_chart(context.redirect_trends[1]),
-    }
-
     plugin_section_htmls: list[str] = []
     for ps in context.plugin_sections:
         fragment_src = ps.template_path.read_text(encoding="utf-8")
@@ -330,7 +276,6 @@ def render_report(context: ReportContext, output_path: Path) -> int:
         engagement_charts=engagement_charts,
         rounds_chart_html=rounds_chart_html,
         redirect_charts=redirect_charts,
-        trend_charts=trend_charts,
         variant_colors=VARIANT_COLORS,
         plugin_section_htmls=plugin_section_htmls,
     )

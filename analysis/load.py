@@ -1,12 +1,12 @@
 """CSV loading and variant lookup.
 
-Per spec FR-001 (as scoped by Clarifications session 2026-05-21), only two
-CSVs are loaded: `ots_chat.csv` and `redirects.csv`. `actions.csv` and
-`ots_matched_hotels.csv` are intentionally skipped.
+Primary CSVs are `ots_chat.csv` and `redirects.csv`. `actions.csv` is loaded
+optionally (present → included in row counts and frontend variant population;
+absent → skipped silently).
 
 Variant labels come from `ots_chat.csv` only. If the same `utid` appears with
 both `A` and `B` labels within `ots_chat.csv`, those rows are dropped from
-comparative analysis (per FR-003 scoped to in-file consistency).
+comparative analysis.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ import pandas as pd
 
 OTS_CHAT_FILE = "ots_chat.csv"
 REDIRECTS_FILE = "redirects.csv"
+ACTIONS_FILE = "actions.csv"
 
 OTS_CHAT_DTYPES: dict[str, str] = {
     "utid": "string",
@@ -34,43 +35,46 @@ REDIRECTS_DTYPES: dict[str, str] = {
     "pre_redirect_id": "string",
 }
 
+ACTIONS_DTYPES: dict[str, str] = {
+    "utid": "string",
+    "variant": "category",
+}
+
 
 @dataclass(frozen=True)
 class DataBundle:
-    """In-memory container for the two loaded CSVs."""
+    """In-memory container for loaded CSVs. `actions` is None if the file is absent."""
 
     ots_chat: pd.DataFrame
     redirects: pd.DataFrame
     data_dir: Path
+    actions: pd.DataFrame | None = None
 
 
 def load_data(data_dir: str | Path) -> DataBundle:
-    """Load `ots_chat.csv` and `redirects.csv` from `data_dir`.
+    """Load CSVs from `data_dir`. `actions.csv` is optional; absent -> None.
 
-    Raises FileNotFoundError with a one-line diagnosis if either file is
-    missing. The CLI maps this to exit code 2.
+    Raises FileNotFoundError if `ots_chat.csv` or `redirects.csv` is missing.
     """
     data_dir = Path(data_dir)
     ots_chat_path = data_dir / OTS_CHAT_FILE
     redirects_path = data_dir / REDIRECTS_FILE
+    actions_path = data_dir / ACTIONS_FILE
 
     if not ots_chat_path.is_file():
         raise FileNotFoundError(f"Required input missing: {ots_chat_path}")
     if not redirects_path.is_file():
         raise FileNotFoundError(f"Required input missing: {redirects_path}")
 
-    ots_chat = pd.read_csv(
-        ots_chat_path,
-        dtype=OTS_CHAT_DTYPES,
-        parse_dates=["dt"],
-    )
-    redirects = pd.read_csv(
-        redirects_path,
-        dtype=REDIRECTS_DTYPES,
-        parse_dates=["dt"],
+    ots_chat = pd.read_csv(ots_chat_path, dtype=OTS_CHAT_DTYPES, parse_dates=["dt"])
+    redirects = pd.read_csv(redirects_path, dtype=REDIRECTS_DTYPES, parse_dates=["dt"])
+    actions = (
+        pd.read_csv(actions_path, dtype=ACTIONS_DTYPES, parse_dates=["dt"])
+        if actions_path.is_file()
+        else None
     )
 
-    return DataBundle(ots_chat=ots_chat, redirects=redirects, data_dir=data_dir)
+    return DataBundle(ots_chat=ots_chat, redirects=redirects, data_dir=data_dir, actions=actions)
 
 
 def build_variant_lookup(ots_chat: pd.DataFrame) -> tuple[pd.Series, set[str]]:

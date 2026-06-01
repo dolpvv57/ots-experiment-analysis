@@ -11,7 +11,7 @@ from pathlib import Path
 from analysis import stats as stats_module
 from analysis.engagement import (
     compute_engagement_metrics,
-    compute_engagement_trends,
+    compute_load_funnel_metric,
     compute_rounds_metric,
 )
 from analysis.load import (
@@ -24,7 +24,6 @@ from analysis.redirects import (
     build_redirect_attributed,
     compute_redirect_funnel_metric,
     compute_redirect_metrics,
-    compute_redirect_trends,
 )
 from analysis.render import (
     ReportContext,
@@ -96,10 +95,13 @@ def main(argv: list[str] | None = None) -> int:
         bundle = load_data(data_dir)
         chat_rows = len(bundle.ots_chat)
         redirect_rows = len(bundle.redirects)
+        action_rows = len(bundle.actions) if bundle.actions is not None else None
+        total_loaded = chat_rows + redirect_rows + (action_rows or 0)
+        file_count = 3 if bundle.actions is not None else 2
         _stage(
             args.verbose,
             "load",
-            f"{chat_rows + redirect_rows:,} rows in 2 files",
+            f"{total_loaded:,} rows in {file_count} files",
             t0,
         )
 
@@ -107,6 +109,18 @@ def main(argv: list[str] | None = None) -> int:
         _, excluded = build_variant_lookup(bundle.ots_chat)
         pop = compute_variant_population(bundle.ots_chat, excluded)
         chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+        if bundle.actions is not None:
+            _act = bundle.actions[~bundle.actions["utid"].isin(excluded)]
+            _act_counts = (
+                _act.drop_duplicates(["utid", "variant"])
+                .groupby("variant", observed=True)["utid"]
+                .nunique()
+            )
+            action_population: dict[str, int] | None = {
+                str(v): int(_act_counts.get(v, 0)) for v in ("A", "B")
+            }
+        else:
+            action_population = None
         _stage(
             args.verbose,
             "validate",
@@ -124,11 +138,16 @@ def main(argv: list[str] | None = None) -> int:
         t0 = _now()
         eng_metrics = compute_engagement_metrics(chat, pop)
         rounds_metric = compute_rounds_metric(chat)
-        eng_trends = compute_engagement_trends(chat)
+        load_funnel = (
+            compute_load_funnel_metric(bundle.actions, chat)
+            if bundle.actions is not None
+            else None
+        )
         _stage(
             args.verbose,
             "engage",
-            f"{len(eng_metrics)} engagement metrics + rounds metric + 2 trend tables",
+            f"{len(eng_metrics)} engagement metrics + rounds metric"
+            + (" + load funnel" if load_funnel else ""),
             t0,
         )
 
@@ -139,7 +158,6 @@ def main(argv: list[str] | None = None) -> int:
         red_metrics_all = compute_redirect_metrics(attributed_all, chat)
         red_metrics_intent = compute_redirect_metrics(attributed_intent, intent_chat)
         funnel = compute_redirect_funnel_metric(attributed_all, pop)
-        red_trends = compute_redirect_trends(chat, attributed_intent)
         _stage(
             args.verbose,
             "redirect",
@@ -184,13 +202,14 @@ def main(argv: list[str] | None = None) -> int:
             expected_false_positives=total_tests * args.alpha,
             engagement_metrics=eng_metrics,
             rounds_metric=rounds_metric,
+            load_funnel_metric=load_funnel,
             redirect_metrics_all=red_metrics_all,
             redirect_metrics_intent=red_metrics_intent,
             redirect_funnel_metric=funnel,
-            engagement_trends=eng_trends,
-            redirect_trends=red_trends,
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
+            action_rows=action_rows,
+            action_population=action_population,
             plugin_sections=plugin_sections,
         )
         size_bytes = render_report(ctx, output_path)

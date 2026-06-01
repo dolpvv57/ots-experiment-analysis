@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="generated_at" content="2026-05-29T07:30:12.914840+00:00">
+<meta name="generated_at" content="2026-06-01T08:43:46.323306+00:00">
 <title>Ai Filter Entrance Experiment — A/B Analysis</title>
 <style>
   :root {
@@ -67,12 +67,7 @@
 
 <section id="exec-summary">
 <h2>Summary</h2>
-<p><strong>Recommendation:</strong>
-    <span class="verdict verdict-inconclusive">INCONCLUSIVE — needs more data</span>
-</p>
-<p>Per-user INTENT_RECOGNITION rate moved from 0.17% (A) to 0.29% (B), a relative lift of +64.74% (p=&lt;0.001, positive, significant).</p>
-<p>Per-chat-user redirect rate moved from 5.40% (A) to 5.39% (B), a relative lift of -0.22% (p=0.6987, flat, not significant).</p>
-<p><em>Headline metrics did not both clear the bar of directionally positive AND statistically significant. Treat as inconclusive — gather more data or iterate on the design.</em></p>
+<p class="ai-summary-placeholder"><em>AI summary not yet generated. Call <code>generate_ai_summary(ctx)</code> and re-render to populate this section.</em></p>
 </section>
 
 <section id="data-overview">
@@ -83,13 +78,31 @@
   <tbody>
     <tr><td>ots_chat.csv</td><td>7,135,712</td></tr>
     <tr><td>redirects.csv</td><td>2,755,469</td></tr>
+    <tr>
+      <td>actions.csv</td>
+      <td>3,760,045</td>
+    </tr>
   </tbody>
 </table>
 <table style="width:auto;">
-  <thead><tr><th>Variant</th><th>Distinct utids in ots_chat</th></tr></thead>
+  <thead>
+    <tr>
+      <th>Variant</th>
+      <th>Distinct utids in chat (backend)</th>
+      <th>Distinct utids in actions (frontend)</th>
+    </tr>
+  </thead>
   <tbody>
-    <tr><td>A (control)</td><td>1,061,358</td></tr>
-    <tr><td>B (treatment)</td><td>1,063,369</td></tr>
+    <tr>
+      <td>A (control)</td>
+      <td>1,061,358</td>
+      <td>190,776</td>
+    </tr>
+    <tr>
+      <td>B (treatment)</td>
+      <td>1,063,369</td>
+      <td>1,015,323</td>
+    </tr>
   </tbody>
 </table>
 </div>
@@ -98,13 +111,13 @@
 <section id="engagement">
 <h2>Engagement Analysis</h2>
 
-
+<h3>Block 1: Backend chat engagement</h3>
 <table style="width:auto">
   <thead>
     <tr>
       <th>Dimension</th>
-      <th>A count</th><th>B count</th>
-      <th>A rate</th><th>B rate</th>
+      <th>A count</th><th>A rate</th>
+      <th>B count</th><th>B rate</th>
       <th>Rel. lift</th>
       <th>p-value</th>
       <th>Verdict</th>
@@ -114,8 +127,8 @@
     <tr>
       <td>utid</td>
       <td>1,837</td>
-      <td>3,032</td>
       <td>0.17%</td>
+      <td>3,032</td>
       <td>0.29%</td>
       <td>+64.74%</td>
       <td>&lt;0.001</td>
@@ -123,19 +136,19 @@
     </tr>
     <tr>
       <td>chat_session_id</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>request_id</td>
       <td>5,960</td>
-      <td>9,399</td>
       <td>0.40%</td>
+      <td>9,399</td>
       <td>0.63%</td>
       <td>+57.19%</td>
       <td>&lt;0.001</td>
@@ -144,8 +157,8 @@
     <tr>
       <td>correlation_id</td>
       <td>44,837</td>
-      <td>65,945</td>
       <td>1.28%</td>
+      <td>65,945</td>
       <td>1.88%</td>
       <td>+46.74%</td>
       <td>&lt;0.001</td>
@@ -155,10 +168,10 @@
 </table>
 <dl class="muted" style="margin:8px 0 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 12px; font-size:13px;">
   <dt><strong>Rate</strong></dt><dd>INTENT_RECOGNITION distinct count / total chat (SUGGESTIONS + INTENT) distinct count, per dimension.</dd>
-  <dt><strong>p-value</strong></dt><dd>Two-proportion z-test (α = 0.05): p &lt; 0.05 indicates that the A/B difference is unlikely due to random fluctuation.</dd>
+  <dt><strong>p-value</strong></dt><dd>Two-proportion z-test (α = 0.05).</dd>
 </dl>
 
-<h3>Rounds per session (Welch's t-test)</h3>
+<h3>Block 2: Rounds per session (Welch's t-test)</h3>
 <table style="width:auto">
   <thead>
     <tr>
@@ -175,41 +188,83 @@
    p = &lt;0.001 ·
    negative / significant</p>
 
-<h3>Daily trend: engagement absolute (INTENT_RECOGNITION volume)</h3>
-<div class="chart"><div>                            <div id="chart-trend-engagement_abs" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script type="text/javascript">                                    window.PLOTLYENV=window.PLOTLYENV || {};                                    if (document.getElementById("chart-trend-engagement_abs")) {                    Plotly.newPlot(                        "chart-trend-engagement_abs",                        [{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[116,99,93,106,145,115,138,145,116,83,91,147,147,136,150,12],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[193,165,128,150,235,229,216,227,211,133,150,252,230,258,229,31],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[128,110,97,109,149,134,149,161,120,92,97,155,162,143,161,16],"type":"scatter","xaxis":"x2","yaxis":"y2"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[204,173,135,158,255,240,230,246,226,154,166,267,245,271,242,32],"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmapgl":[{"type":"heatmapgl","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,0.44],"title":{"text":"Date (utid panel)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Distinct count"}},"xaxis2":{"anchor":"y2","domain":[0.56,1.0],"title":{"text":"Date (chat_session_id panel)"}},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{"text":"Distinct count"}},"annotations":[{"font":{"size":16},"showarrow":false,"text":"By utid","x":0.22,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"By chat_session_id","x":0.78,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"}],"margin":{"l":40,"r":20,"t":70,"b":40},"legend":{"orientation":"h","yanchor":"bottom","y":1.05,"xanchor":"right","x":1.0},"title":{"text":"Daily INTENT_RECOGNITION volume"},"height":380},                        {"responsive": true}                    )                };                            </script>        </div></div>
-
-<h3>Daily trend: engagement ratio (INTENT_RECOGNITION / SUGGESTIONS)</h3>
-<div class="chart"><div>                            <div id="chart-trend-engagement_ratio" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script type="text/javascript">                                    window.PLOTLYENV=window.PLOTLYENV || {};                                    if (document.getElementById("chart-trend-engagement_ratio")) {                    Plotly.newPlot(                        "chart-trend-engagement_ratio",                        [{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.0014235399511578534,0.001685881170921104,0.001997122425752142,0.0019744807674396945,0.0016090550962658825,0.001313610143354846,0.0016059396492534709,0.0018348159489794628,0.0017624625856541623,0.0019001831501831502,0.0017477480938022164,0.001569322415688954,0.0016803456711094854,0.0016777695534172217,0.0020817720043300857,0.0019305019305019305],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.002366675250462912,0.0028106156099887577,0.002733524110536881,0.0027968898584773733,0.0026131435560991885,0.0026163056393382687,0.002509731017254401,0.0028651125219301015,0.003188129882296058,0.0030505986513142806,0.002903881521633917,0.0026800812532570433,0.0025997807141484586,0.0031811008088380353,0.003171393751384888,0.004919073310060298],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.0005437021871270011,0.0006048808384748204,0.0006492289569500964,0.0006555168660279888,0.0005846347014046928,0.0005458092844603209,0.0006302423260594628,0.0007167916228874682,0.0006379314011100007,0.0006573259693771836,0.0006041731547804422,0.0005959269355130162,0.0006534919463168468,0.00038747612144531305,0.0004097818229946143,0.0003494594299443049],"type":"scatter","xaxis":"x2","yaxis":"y2"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.0008692243450991086,0.0009596024028887915,0.0009288820388616723,0.0009278453434495881,0.000999044051965962,0.000989756025139803,0.0009497578117580017,0.0010758048857285299,0.0011946673432924185,0.0011107665010133942,0.0010407849775855042,0.001023894711411249,0.0009971672310497524,0.0007344790483753378,0.0006112948082883493,0.0006542228037536034],"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmapgl":[{"type":"heatmapgl","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,0.44],"title":{"text":"Date (utid panel)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Conversion rate"}},"xaxis2":{"anchor":"y2","domain":[0.56,1.0],"title":{"text":"Date (chat_session_id panel)"}},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{"text":"Conversion rate"}},"annotations":[{"font":{"size":16},"showarrow":false,"text":"By utid","x":0.22,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"By chat_session_id","x":0.78,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"}],"margin":{"l":40,"r":20,"t":70,"b":40},"legend":{"orientation":"h","yanchor":"bottom","y":1.05,"xanchor":"right","x":1.0},"title":{"text":"Daily INTENT_RECOGNITION \u00f7 SUGGESTIONS"},"height":380},                        {"responsive": true}                    )                };                            </script>        </div></div>
+<h3>Block 3: Frontend funnel: load → click → chat</h3>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th>Step</th>
+      <th>A count</th><th>A rate</th>
+      <th>B count</th><th>B rate</th>
+      <th>Rel. lift</th>
+      <th>p-value</th>
+      <th>Verdict</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Load (denominator)</td>
+      <td>135,654</td><td>—</td>
+      <td>1,007,556</td><td>—</td>
+      <td>—</td><td>—</td><td>—</td>
+    </tr>
+    <tr>
+      <td>Click</td>
+      <td>1,969</td><td>1.45%</td>
+      <td>6,174</td><td>0.61%</td>
+      <td>-57.78%</td>
+      <td>&lt;0.001</td>
+      <td>negative / significant</td>
+    </tr>
+    <tr>
+      <td>Chat</td>
+      <td>1,837</td><td>1.35%</td>
+      <td>3,032</td><td>0.30%</td>
+      <td>-77.78%</td>
+      <td>&lt;0.001</td>
+      <td>negative / significant</td>
+    </tr>
+  </tbody>
+</table>
+<dl class="muted" style="margin:8px 0 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 12px; font-size:13px;">
+  <dt><strong>Load</strong></dt><dd>Distinct utids with CHAT_BOX_ENTRY_LOADED in actions.csv.</dd>
+  <dt><strong>Click</strong></dt><dd>Distinct utids with CHAT_BOX_ENTRY_CLICK / load utids.</dd>
+  <dt><strong>Chat</strong></dt><dd>Distinct utids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat / load utids.</dd>
+</dl>
 </section>
 
 <section id="redirect">
 <h2>Redirect Analysis</h2>
 <p class="muted">
-  Numerator: distinct dimension values matched to a redirect via (utid, correlation_id ↔ pre_redirect_id).<br>
+  Redirect count: distinct dimension values matched to a redirect via (utid, correlation_id ↔ pre_redirect_id).<br>
   p-value: two-proportion z-test (α = 0.05).
 </p>
 
-<h3>Part 1: All chat rows (SUGGESTIONS + INTENT)</h3>
-<p class="muted">Denominator: distinct dimension values across all chat rows.</p>
+<h3>Block 1: Overall redirect</h3>
+<p class="muted">All users: distinct dimension values across all chat rows (SUGGESTIONS + INTENT).</p>
 <table style="width:auto">
   <thead>
     <tr>
-      <th>Dimension</th>
-      <th>A Num</th><th>B Num</th>
-      <th>A Den</th><th>B Den</th>
-      <th>A Rate</th><th>B Rate</th>
-      <th>Δ (pp)</th><th>Rel. lift</th>
-      <th>p-value</th><th>Verdict</th>
+      <th rowspan="2">Dimension</th>
+      <th colspan="3" style="text-align:center">A</th>
+      <th colspan="3" style="text-align:center">B</th>
+      <th rowspan="2">Δ (pp)</th>
+      <th rowspan="2">Rel. lift</th>
+      <th rowspan="2">p-value</th>
+      <th rowspan="2">Verdict</th>
+    </tr>
+    <tr>
+      <th>All users</th><th style="width:100px">Redirect count</th><th>Rate</th>
+      <th>All users</th><th style="width:100px">Redirect count</th><th>Rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>utid</td>
-      <td>57,285</td>
-      <td>57,266</td>
       <td>1,061,358</td>
-      <td>1,063,369</td>
+      <td>57,285</td>
       <td>5.40%</td>
+      <td>1,063,369</td>
+      <td>57,266</td>
       <td>5.39%</td>
       <td>-0.01 pp</td>
       <td>-0.22%</td>
@@ -218,24 +273,24 @@
     </tr>
     <tr>
       <td>chat_session_id</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
-      <td>\</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
     </tr>
     <tr>
       <td>request_id</td>
-      <td>71,842</td>
-      <td>72,137</td>
       <td>1,483,860</td>
-      <td>1,488,676</td>
+      <td>71,842</td>
       <td>4.84%</td>
+      <td>1,488,676</td>
+      <td>72,137</td>
       <td>4.85%</td>
       <td>+0.00 pp</td>
       <td>+0.09%</td>
@@ -244,11 +299,11 @@
     </tr>
     <tr>
       <td>correlation_id</td>
-      <td>84,285</td>
-      <td>84,869</td>
       <td>3,498,234</td>
-      <td>3,506,214</td>
+      <td>84,285</td>
       <td>2.41%</td>
+      <td>3,506,214</td>
+      <td>84,869</td>
       <td>2.42%</td>
       <td>+0.01 pp</td>
       <td>+0.46%</td>
@@ -257,29 +312,33 @@
     </tr>
   </tbody>
 </table>
-<p class="muted" style="font-size:13px;">Leave chat_session_id blank: the SUGGESTIONS row does not have a chat_session_id, and its denominator is equivalent to Part 2, so it is not displayed repeatedly.</p>
 
-<h3>Part 2: INTENT rows only</h3>
-<p class="muted">Denominator: distinct dimension values among CHAT_TYPE_INTENT_RECOGNITION rows only.</p>
+<h3>Block 2: From chat to redirect</h3>
+<p class="muted">Chat users: distinct dimension values among CHAT_TYPE_INTENT_RECOGNITION rows only.</p>
 <table style="width:auto">
   <thead>
     <tr>
-      <th>Dimension</th>
-      <th>A Num</th><th>B Num</th>
-      <th>A Den</th><th>B Den</th>
-      <th>A Rate</th><th>B Rate</th>
-      <th>Δ (pp)</th><th>Rel. lift</th>
-      <th>p-value</th><th>Verdict</th>
+      <th rowspan="2">Dimension</th>
+      <th colspan="3" style="text-align:center">A</th>
+      <th colspan="3" style="text-align:center">B</th>
+      <th rowspan="2">Δ (pp)</th>
+      <th rowspan="2">Rel. lift</th>
+      <th rowspan="2">p-value</th>
+      <th rowspan="2">Verdict</th>
+    </tr>
+    <tr>
+      <th>Chat users</th><th style="width:100px">Redirect count</th><th>Rate</th>
+      <th>Chat users</th><th style="width:100px">Redirect count</th><th>Rate</th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td>utid</td>
-      <td>794</td>
-      <td>1,156</td>
       <td>1,837</td>
-      <td>3,032</td>
+      <td>794</td>
       <td>43.22%</td>
+      <td>3,032</td>
+      <td>1,156</td>
       <td>38.13%</td>
       <td>-5.10 pp</td>
       <td>-11.79%</td>
@@ -288,11 +347,11 @@
     </tr>
     <tr>
       <td>chat_session_id</td>
-      <td>889</td>
-      <td>1,270</td>
       <td>1,983</td>
-      <td>3,244</td>
+      <td>889</td>
       <td>44.83%</td>
+      <td>3,244</td>
+      <td>1,270</td>
       <td>39.15%</td>
       <td>-5.68 pp</td>
       <td>-12.67%</td>
@@ -301,11 +360,11 @@
     </tr>
     <tr>
       <td>request_id</td>
-      <td>1,173</td>
-      <td>1,724</td>
       <td>5,960</td>
-      <td>9,399</td>
+      <td>1,173</td>
       <td>19.68%</td>
+      <td>9,399</td>
+      <td>1,724</td>
       <td>18.34%</td>
       <td>-1.34 pp</td>
       <td>-6.80%</td>
@@ -314,11 +373,11 @@
     </tr>
     <tr>
       <td>correlation_id</td>
-      <td>1,434</td>
-      <td>2,214</td>
       <td>44,837</td>
-      <td>65,945</td>
+      <td>1,434</td>
       <td>3.20%</td>
+      <td>65,945</td>
+      <td>2,214</td>
       <td>3.36%</td>
       <td>+0.16 pp</td>
       <td>+4.97%</td>
@@ -327,13 +386,6 @@
     </tr>
   </tbody>
 </table>
-
-
-<h3>Daily trend: redirect absolute</h3>
-<div class="chart"><div>                            <div id="chart-trend-redirect_abs" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script type="text/javascript">                                    window.PLOTLYENV=window.PLOTLYENV || {};                                    if (document.getElementById("chart-trend-redirect_abs")) {                    Plotly.newPlot(                        "chart-trend-redirect_abs",                        [{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[47,46,49,47,64,57,51,73,54,35,33,66,62,45,60,6],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[74,74,43,54,93,92,82,79,76,64,61,99,72,89,90,14],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[52,52,52,49,67,72,58,82,58,42,39,71,70,50,65,10],"type":"scatter","xaxis":"x2","yaxis":"y2"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[81,80,47,60,100,98,87,89,86,80,71,107,79,92,99,14],"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmapgl":[{"type":"heatmapgl","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,0.44],"title":{"text":"Date (utid panel)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Distinct count"}},"xaxis2":{"anchor":"y2","domain":[0.56,1.0],"title":{"text":"Date (chat_session_id panel)"}},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{"text":"Distinct count"}},"annotations":[{"font":{"size":16},"showarrow":false,"text":"By utid","x":0.22,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"By chat_session_id","x":0.78,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"}],"margin":{"l":40,"r":20,"t":70,"b":40},"legend":{"orientation":"h","yanchor":"bottom","y":1.05,"xanchor":"right","x":1.0},"title":{"text":"Daily redirect-attributed count (INTENT_RECOGNITION only)"},"height":380},                        {"responsive": true}                    )                };                            </script>        </div></div>
-
-<h3>Daily trend: redirect ratio (redirect ÷ INTENT_RECOGNITION)</h3>
-<div class="chart"><div>                            <div id="chart-trend-redirect_ratio" class="plotly-graph-div" style="height:380px; width:100%;"></div>            <script type="text/javascript">                                    window.PLOTLYENV=window.PLOTLYENV || {};                                    if (document.getElementById("chart-trend-redirect_ratio")) {                    Plotly.newPlot(                        "chart-trend-redirect_ratio",                        [{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.4051724137931034,0.46464646464646464,0.5268817204301075,0.44339622641509435,0.4413793103448276,0.4956521739130435,0.3695652173913043,0.503448275862069,0.46551724137931033,0.42168674698795183,0.3626373626373626,0.4489795918367347,0.4217687074829932,0.33088235294117646,0.4,0.5],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":true,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.38341968911917096,0.4484848484848485,0.3359375,0.36,0.39574468085106385,0.4017467248908297,0.37962962962962965,0.34801762114537443,0.36018957345971564,0.48120300751879697,0.4066666666666667,0.39285714285714285,0.3130434782608696,0.3449612403100775,0.3930131004366812,0.45161290322580644],"type":"scatter","xaxis":"x","yaxis":"y"},{"legendgroup":"A","line":{"color":"#4C78A8","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant A","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.40625,0.4727272727272727,0.5360824742268041,0.44954128440366975,0.44966442953020136,0.5373134328358209,0.38926174496644295,0.5093167701863354,0.48333333333333334,0.45652173913043476,0.4020618556701031,0.45806451612903226,0.43209876543209874,0.34965034965034963,0.40372670807453415,0.625],"type":"scatter","xaxis":"x2","yaxis":"y2"},{"legendgroup":"B","line":{"color":"#F58518","width":2},"marker":{"size":6},"mode":"lines+markers","name":"Variant B","showlegend":false,"x":["2026-04-30T00:00:00","2026-05-01T00:00:00","2026-05-02T00:00:00","2026-05-03T00:00:00","2026-05-04T00:00:00","2026-05-05T00:00:00","2026-05-06T00:00:00","2026-05-07T00:00:00","2026-05-08T00:00:00","2026-05-09T00:00:00","2026-05-10T00:00:00","2026-05-11T00:00:00","2026-05-12T00:00:00","2026-05-13T00:00:00","2026-05-14T00:00:00","2026-05-15T00:00:00"],"y":[0.39705882352941174,0.4624277456647399,0.34814814814814815,0.379746835443038,0.39215686274509803,0.4083333333333333,0.3782608695652174,0.3617886178861789,0.3805309734513274,0.5194805194805194,0.42771084337349397,0.40074906367041196,0.3224489795918367,0.33948339483394835,0.4090909090909091,0.4375],"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmapgl":[{"type":"heatmapgl","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"anchor":"y","domain":[0.0,0.44],"title":{"text":"Date (utid panel)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"Redirect rate"}},"xaxis2":{"anchor":"y2","domain":[0.56,1.0],"title":{"text":"Date (chat_session_id panel)"}},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{"text":"Redirect rate"}},"annotations":[{"font":{"size":16},"showarrow":false,"text":"By utid","x":0.22,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"By chat_session_id","x":0.78,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"}],"margin":{"l":40,"r":20,"t":70,"b":40},"legend":{"orientation":"h","yanchor":"bottom","y":1.05,"xanchor":"right","x":1.0},"title":{"text":"Daily redirect \u00f7 INTENT_RECOGNITION rate"},"height":380},                        {"responsive": true}                    )                };                            </script>        </div></div>
 </section>
 
 <section id="entrance-analysis">
@@ -928,11 +980,11 @@
 
 <h3>Methodology</h3>
 <ul>
-  <li><strong>Engagement rate:</strong> per-dimension distinct INTENT count / per-dimension distinct count across all chat (SUGGESTIONS + INTENT). E.g. for the request_id dimension, the rate is the share of all chat request_ids that triggered an INTENT_RECOGNITION row.</li>
-  <li><strong>Engagement ratio (trend chart 2):</strong> at the utid panel — distinct INTENT utids / distinct SUGGESTIONS utids per (dt, variant). At the chat_session_id panel, since SUGGESTIONS rows have empty session_id, the denominator is the SUGGESTIONS row count per (dt, variant) — interpretable as "INTENT sessions started per suggestion render".</li>
-  <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its correlation_id appears in redirects.pre_redirect_id. Suggestions are excluded.</li>
-  <li><strong>Statistical tests:</strong> two-proportion z-test for rate metrics; Welch's t-test for the rounds mean. α = 0.05. Two-sided.</li>
-  <li><strong>Significance verdict:</strong> "significant" iff p &lt; 0.05.</li>
+  <li><strong>Engagement rate (Block 1):</strong> per-dimension distinct INTENT_RECOGNITION count / per-dimension distinct count across all chat (SUGGESTIONS + INTENT). E.g. for utid, the rate is the share of users who had at least one INTENT_RECOGNITION row.</li>
+  <li><strong>Rounds per session (Block 2):</strong> per INTENT_RECOGNITION session, the maximum <code>rounds</code> value is taken as the session depth. Mean and median are compared across variants; significance is assessed with Welch's t-test.</li>
+  <li><strong>Frontend funnel (Block 3):</strong> denominator is distinct utids with <code>CHAT_BOX_ENTRY_LOADED</code> in actions.csv. Click rate = ENTRY_CLICK utids / load utids; chat rate = INTENT_RECOGNITION utids (from ots_chat) / load utids.</li>
+  <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its <code>correlation_id</code> appears in <code>redirects.pre_redirect_id</code>. SUGGESTIONS rows are excluded from the intent-only table.</li>
+  <li><strong>Statistical tests:</strong> two-proportion z-test for all rate metrics; Welch's t-test for rounds mean. α = 0.05. Two-sided. "significant" iff p &lt; 0.05.</li>
 </ul>
 
 <h3>Multiple comparisons</h3>
@@ -940,26 +992,19 @@
   This report runs <strong>18</strong> two-sided tests in total at α = 0.05.
   At this multiplicity, the expected number of false positives under the null hypothesis is approximately
   <strong>0.90</strong>. No multiple-comparisons correction
-  (Bonferroni / Benjamini-Hochberg) is applied. Treat borderline-significant findings
-  with this in mind.
+  is applied. Treat borderline-significant findings with this in mind.
 </p>
 
 <h3>Excluded data</h3>
 <p>
     No utids excluded.
-  Cross-file variant validation (against actions.csv) is intentionally NOT performed in this analysis
-  (per Clarifications session 2026-05-21).
 </p>
-
-<h3>Per-day per-variant row counts</h3>
-<p class="muted">Sanity-check: for any day where one variant's row count is much smaller than the other, treat the daily-trend points with caution.</p>
 
 </section>
 
 <footer>
-  Generated 2026-05-29 07:30:12 UTC
-  · Source: ots_chat.csv + redirects.csv
-  · Plotly bundle inlined for offline viewing
+  Generated 2026-06-01 08:43:46 UTC
+  · Source: ots_chat.csv + redirects.csv + actions.csv  · Plotly bundle inlined for offline viewing
 </footer>
 
 </main>

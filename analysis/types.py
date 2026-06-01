@@ -97,6 +97,35 @@ class RedirectFunnelMetric:
 
 
 @dataclass(frozen=True)
+class LoadFunnelMetric:
+    """Load → click / chat funnel: denominator is ENTRY_LOADED distinct utids per variant.
+
+    click = ENTRY_CLICK distinct utids; chat = INTENT_RECOGNITION distinct utids.
+    p-values are two-proportion z-tests comparing A vs B.
+    None when actions.csv was absent.
+    """
+
+    load_A: int
+    load_B: int
+    click_A: int
+    click_B: int
+    chat_A: int
+    chat_B: int
+    click_rate_A: float
+    click_rate_B: float
+    click_rel_lift_pct: float
+    click_p_value: float
+    click_directional_verdict: DirectionalVerdict
+    click_significance_verdict: SignificanceVerdict
+    chat_rate_A: float
+    chat_rate_B: float
+    chat_rel_lift_pct: float
+    chat_p_value: float
+    chat_directional_verdict: DirectionalVerdict
+    chat_significance_verdict: SignificanceVerdict
+
+
+@dataclass(frozen=True)
 class DailyTrend:
     """One of the four daily-trend charts.
 
