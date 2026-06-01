@@ -61,6 +61,7 @@
 {# ============== EXECUTIVE SUMMARY ============== #}
 <section id="exec-summary">
 <h2>Summary</h2>
+{% if ctx.exec_summary %}
 <p><strong>Recommendation:</strong>
   {% if ctx.exec_summary.recommendation == "ship" %}
     <span class="verdict verdict-ship">SHIP</span>
@@ -73,6 +74,9 @@
 <p>{{ ctx.exec_summary.headline_engagement }}</p>
 <p>{{ ctx.exec_summary.headline_redirect }}</p>
 <p><em>{{ ctx.exec_summary.rationale }}</em></p>
+{% else %}
+<p class="ai-summary-placeholder"><em>AI summary not yet generated. Call <code>generate_ai_summary(ctx)</code> and re-render to populate this section.</em></p>
+{% endif %}
 </section>
 
 {# ============== DATA OVERVIEW ============== #}

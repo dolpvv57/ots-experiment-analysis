@@ -28,7 +28,6 @@ from analysis.redirects import (
 )
 from analysis.render import (
     ReportContext,
-    build_exec_summary,
     make_generated_at,
     render_report,
 )
@@ -168,7 +167,6 @@ def main(argv: list[str] | None = None) -> int:
             _stage(args.verbose, "plugin", f"{plugin_path} computed", t0)
 
         t0 = _now()
-        exec_summary = build_exec_summary(eng_metrics, funnel)
         plugin_tests = sum(ps.test_count for ps in plugin_sections)
         total_tests = (
             len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent)
@@ -191,7 +189,6 @@ def main(argv: list[str] | None = None) -> int:
             redirect_funnel_metric=funnel,
             engagement_trends=eng_trends,
             redirect_trends=red_trends,
-            exec_summary=exec_summary,
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
             plugin_sections=plugin_sections,

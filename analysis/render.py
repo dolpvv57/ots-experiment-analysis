@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Optional
 
 import jinja2
 import pandas as pd
@@ -35,6 +35,7 @@ class ExecSummary:
     headline_redirect: str
     recommendation: str  # "ship" | "do_not_ship" | "inconclusive"
     rationale: str
+    # TODO: replace with AI-generated summary; populate via generate_ai_summary()
 
 
 def _fmt_pct(x: float, digits: int = 2) -> str:
@@ -238,76 +239,6 @@ def build_map_rate_chart(
     return pio.to_html(fig, include_plotlyjs=False, full_html=False, div_id=div_id)
 
 
-def build_exec_summary(
-    engagement_metrics: Iterable[EngagementMetric],
-    redirect_funnel: RedirectFunnelMetric,
-) -> ExecSummary:
-    """Pick the headline finding and produce a SHIP / DO NOT SHIP / INCONCLUSIVE verdict.
-
-    Headline engagement: CHAT_TYPE_INTENT_RECOGNITION × utid (per-user interaction rate).
-    Headline redirect: per-FR-013 funnel rate (utids with redirect / variant_population).
-    SHIP only if both are directionally positive AND p < 0.05 (FR-SIG-005).
-    """
-    headline_engagement_metric = None
-    for m in engagement_metrics:
-        if m.chat_type == "CHAT_TYPE_INTENT_RECOGNITION" and m.dimension == "utid":
-            headline_engagement_metric = m
-            break
-
-    if headline_engagement_metric is None:
-        raise ValueError("missing headline engagement metric (INTENT × utid)")
-
-    e = headline_engagement_metric
-    r = redirect_funnel
-
-    headline_engagement = (
-        f"Per-user INTENT_RECOGNITION rate moved from {_fmt_pct(e.value_A)} (A) "
-        f"to {_fmt_pct(e.value_B)} (B), a relative lift of {_fmt_lift(e.rel_lift_pct)} "
-        f"(p={_fmt_p(e.p_value)}, {e.directional_verdict}, {e.significance_verdict.replace('_', ' ')})."
-    )
-    headline_redirect = (
-        f"Per-chat-user redirect rate moved from {_fmt_pct(r.rate_A)} (A) "
-        f"to {_fmt_pct(r.rate_B)} (B), a relative lift of {_fmt_lift(r.rel_lift_pct)} "
-        f"(p={_fmt_p(r.p_value)}, {r.directional_verdict}, {r.significance_verdict.replace('_', ' ')})."
-    )
-
-    is_engagement_win = (
-        e.directional_verdict == "positive" and e.significance_verdict == "significant"
-    )
-    is_redirect_win = (
-        r.directional_verdict == "positive" and r.significance_verdict == "significant"
-    )
-    is_engagement_loss = e.directional_verdict == "negative"
-    is_redirect_loss = r.directional_verdict == "negative"
-
-    if is_engagement_loss or is_redirect_loss:
-        recommendation = "do_not_ship"
-        rationale = (
-            "At least one headline metric moved in the wrong direction; do not ship "
-            "without further investigation."
-        )
-    elif is_engagement_win and is_redirect_win:
-        recommendation = "ship"
-        rationale = (
-            "Both headline metrics moved positively and reached statistical significance "
-            "at α=0.05. Recommend shipping the treatment."
-        )
-    else:
-        recommendation = "inconclusive"
-        rationale = (
-            "Headline metrics did not both clear the bar of directionally positive AND "
-            "statistically significant. Treat as inconclusive — gather more data or "
-            "iterate on the design."
-        )
-
-    return ExecSummary(
-        headline_engagement=headline_engagement,
-        headline_redirect=headline_redirect,
-        recommendation=recommendation,
-        rationale=rationale,
-    )
-
-
 @dataclass
 class ReportContext:
     experiment_name: str
@@ -329,11 +260,10 @@ class ReportContext:
     engagement_trends: tuple[DailyTrend, DailyTrend]
     redirect_trends: tuple[DailyTrend, DailyTrend]
 
-    exec_summary: ExecSummary
-
     chat_rows: int
     redirect_rows: int
     plugin_sections: list[PluginSection] = field(default_factory=list)
+    exec_summary: Optional[ExecSummary] = None  # populated by AI; None → placeholder shown
 
 
 def render_report(context: ReportContext, output_path: Path) -> int:
