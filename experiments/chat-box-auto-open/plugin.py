@@ -1,26 +1,64 @@
-"""Map usage analysis for the chat-box-auto-open experiment.
+"""Map usage analysis plugin for the chat-box-auto-open experiment.
 
 Population: users with at least one CHAT_BOX_ENTRY_LOADED in actions.csv
 (proxy for "actually rendered day view with the chat box").
 
 Block 1 — exposure rate: % users with MAP_MOVING_DAY_VIEW / MAP_HOTEL_MARKER_CLICK / any map action.
-Block 2 — intensity: mean & median map actions per map-user (Welch's t; post-treatment selection caveat).
 Block 3 — redirect funnel: P(redirect) segmented by map usage (map users / marker users / non-map users).
 """
 
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
 
+from analysis.load import DataBundle
+from analysis.render import build_map_rate_chart
 from analysis.stats import directional_verdict, two_proportion_z_test
-from analysis.types import MapRateMetric, MapSection
+from analysis.types import DirectionalVerdict, SignificanceVerdict
+
+TEMPLATE_FRAGMENT = "templates/section.html.j2"
 
 _LOADED_ACTION = "CHAT_BOX_ENTRY_LOADED"
 _MAP_ACTIONS = ("MAP_MOVING_DAY_VIEW", "MAP_HOTEL_MARKER_CLICK")
 
+
+# ---------------------------------------------------------------------------
+# Types
+# ---------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class MapRateMetric:
+    label: str
+    numerator_A: int
+    denominator_A: int
+    numerator_B: int
+    denominator_B: int
+    rate_A: float
+    rate_B: float
+    abs_diff: float
+    rel_lift_pct: float
+    p_value: float
+    ci_low: float
+    ci_high: float
+    directional_verdict: DirectionalVerdict
+    significance_verdict: SignificanceVerdict
+
+
+@dataclass(frozen=True)
+class MapSection:
+    population_A: int
+    population_B: int
+    exposure_metrics: list[MapRateMetric]
+    funnel_metrics: list[MapRateMetric]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _rel_lift_pct(a: float, b: float) -> float:
     if a == 0 or math.isnan(a) or math.isnan(b):
@@ -53,48 +91,44 @@ def _rate_metric(
     )
 
 
+# ---------------------------------------------------------------------------
+# Plugin interface
+# ---------------------------------------------------------------------------
 
-def compute(
-    data_dir: Path,
-    redirects_df: pd.DataFrame,
-    excluded_utids: set[str],
-) -> MapSection:
+def compute(bundle: DataBundle, excluded_session_ids: set[str]) -> MapSection:
     actions = pd.read_csv(
-        data_dir / "actions.csv",
-        usecols=["utid", "variant", "action_type"],
-        dtype={"utid": "string", "variant": "category", "action_type": "category"},
+        bundle.data_dir / "actions.csv",
+        usecols=["session_id", "variant", "action_type"],
+        dtype={"session_id": "string", "variant": "category", "action_type": "category"},
     )
+    actions = actions[~actions["session_id"].isin(excluded_session_ids)]
 
-    actions = actions[~actions["utid"].isin(excluded_utids)]
-
-    loaded_utids: set[str] = set(
-        actions.loc[actions["action_type"] == _LOADED_ACTION, "utid"].dropna()
+    loaded_session_ids: set[str] = set(
+        actions.loc[actions["action_type"] == _LOADED_ACTION, "session_id"].dropna()
     )
 
     variant_lookup: pd.Series = (
-        actions[actions["utid"].isin(loaded_utids)]
-        .drop_duplicates("utid")[["utid", "variant"]]
-        .set_index("utid")["variant"]
+        actions[actions["session_id"].isin(loaded_session_ids)]
+        .drop_duplicates("session_id")[["session_id", "variant"]]
+        .set_index("session_id")["variant"]
         .astype("string")
     )
     pop_a = int((variant_lookup == "A").sum())
     pop_b = int((variant_lookup == "B").sum())
 
     map_rows = actions[
-        actions["utid"].isin(loaded_utids)
+        actions["session_id"].isin(loaded_session_ids)
         & actions["action_type"].isin(_MAP_ACTIONS)
     ].copy()
-    map_rows["v"] = map_rows["utid"].map(variant_lookup)
+    map_rows["v"] = map_rows["session_id"].map(variant_lookup)
 
     def _users_with(action_type: str, variant: str) -> set[str]:
         return set(
             map_rows.loc[
                 (map_rows["action_type"] == action_type) & (map_rows["v"] == variant),
-                "utid",
+                "session_id",
             ]
         )
-
-    # ---- block 1: exposure ----
 
     moving_a = _users_with("MAP_MOVING_DAY_VIEW", "A")
     moving_b = _users_with("MAP_MOVING_DAY_VIEW", "B")
@@ -109,9 +143,7 @@ def compute(
         _rate_metric("Any map action", len(any_a), pop_a, len(any_b), pop_b),
     ]
 
-    # ---- block 3: redirect funnel ----
-
-    redirected_utids: set[str] = set(redirects_df["utid"].dropna())
+    redirected_session_ids: set[str] = set(bundle.redirects["session_id"].dropna())
     loaded_a: set[str] = set(variant_lookup[variant_lookup == "A"].index)
     loaded_b: set[str] = set(variant_lookup[variant_lookup == "B"].index)
     non_map_a = loaded_a - any_a
@@ -120,8 +152,8 @@ def compute(
     def _funnel(label: str, users_a: set[str], users_b: set[str]) -> MapRateMetric:
         return _rate_metric(
             label,
-            len(users_a & redirected_utids), len(users_a),
-            len(users_b & redirected_utids), len(users_b),
+            len(users_a & redirected_session_ids), len(users_a),
+            len(users_b & redirected_session_ids), len(users_b),
         )
 
     funnel = [
@@ -137,3 +169,22 @@ def compute(
         exposure_metrics=exposure,
         funnel_metrics=funnel,
     )
+
+
+def count_tests(section: MapSection) -> int:
+    return len(section.exposure_metrics) + len(section.funnel_metrics)
+
+
+def build_charts(section: MapSection) -> dict[str, str]:
+    return {
+        "map_exposure": build_map_rate_chart(
+            section.exposure_metrics,
+            "Map usage rate by variant",
+            "chart-map-exposure",
+        ),
+        "map_funnel": build_map_rate_chart(
+            section.funnel_metrics,
+            "Redirect rate by map-usage segment and variant",
+            "chart-map-funnel",
+        ),
+    }

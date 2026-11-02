@@ -1,4 +1,4 @@
-dt,utid,chat_session_id,chat_type,rounds,request_id,correlation_id,variant
+dt,session_id,chat_session_id,chat_type,rounds,request_id,correlation_id,variant
 2026-04-10,u1,,CHAT_TYPE_SUGGESTIONS,0,r1,c1,A
 2026-04-10,u1,s1,CHAT_TYPE_INTENT_RECOGNITION,2,r1,c2,A
 2026-04-10,u2,,CHAT_TYPE_SUGGESTIONS,0,r2,c3,A

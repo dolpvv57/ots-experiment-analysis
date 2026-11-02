@@ -38,7 +38,7 @@ def test_variant_lookup_drops_in_file_conflicts(fixtures_dir: Path) -> None:
     assert lookup.loc["u3"] == "B"
 
 
-def test_variant_population_matches_distinct_utids(fixtures_dir: Path) -> None:
+def test_variant_population_matches_distinct_session_ids(fixtures_dir: Path) -> None:
     bundle = load_data(fixtures_dir)
     _, excluded = build_variant_lookup(bundle.ots_chat)
     pop = compute_variant_population(bundle.ots_chat, excluded)

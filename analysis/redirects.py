@@ -1,7 +1,9 @@
 """Redirect attribution + redirect-rate metrics.
 
 Implements:
-- `build_redirect_attributed`: INTENT chat rows × redirects.csv on correlation_id.
+- `build_redirect_attributed`: INTENT chat rows × redirects.csv on correlation_id,
+  carrying through redirects.is_booking so callers can derive booking metrics by
+  filtering the result to is_booking == 1 and re-calling `compute_redirect_metrics`.
 - `compute_redirect_metrics`: 4 RedirectMetric rows (one per dimension).
 - `compute_redirect_funnel_metric`: per-FR-013 funnel rate.
 - `compute_redirect_trends`: charts 3 (redirect_abs) and 4 (redirect_ratio).
@@ -20,7 +22,7 @@ from analysis.types import (
     RedirectMetric,
 )
 
-DIMENSIONS = ("utid", "chat_session_id", "request_id", "correlation_id")
+DIMENSIONS = ("session_id", "chat_session_id", "request_id", "correlation_id")
 
 
 def _rel_lift_pct(value_a: float, value_b: float) -> float:
@@ -34,7 +36,7 @@ def build_redirect_attributed(
     redirects: pd.DataFrame,
     intent_only: bool = False,
 ) -> pd.DataFrame:
-    """Inner-join chat rows to redirects on (utid, correlation_id == pre_redirect_id).
+    """Inner-join chat rows to redirects on (session_id, correlation_id == pre_redirect_id).
 
     Args:
         intent_only: if True, restrict chat side to CHAT_TYPE_INTENT_RECOGNITION rows only.
@@ -46,15 +48,15 @@ def build_redirect_attributed(
         if intent_only
         else chat_with_variant
     )
-    redirect_keys = redirects[["utid", "pre_redirect_id"]].drop_duplicates()
+    redirect_keys = redirects[["session_id", "pre_redirect_id", "is_booking"]].drop_duplicates()
     attributed = chat.merge(
         redirect_keys,
-        left_on=["utid", "correlation_id"],
-        right_on=["utid", "pre_redirect_id"],
+        left_on=["session_id", "correlation_id"],
+        right_on=["session_id", "pre_redirect_id"],
         how="inner",
     )
     return attributed[
-        ["utid", "chat_session_id", "request_id", "correlation_id", "variant", "dt"]
+        ["session_id", "chat_session_id", "request_id", "correlation_id", "variant", "dt", "is_booking"]
     ]
 
 
@@ -109,9 +111,9 @@ def compute_redirect_metrics(
 def compute_redirect_funnel_metric(
     redirect_attributed: pd.DataFrame, variant_population: dict[str, int]
 ) -> RedirectFunnelMetric:
-    """Per-FR-013: distinct utids with redirect / variant_population (chat users)."""
-    num_a = _distinct_count(redirect_attributed, "utid", "A")
-    num_b = _distinct_count(redirect_attributed, "utid", "B")
+    """Per-FR-013: distinct session_ids with redirect / variant_population (chat users)."""
+    num_a = _distinct_count(redirect_attributed, "session_id", "A")
+    num_b = _distinct_count(redirect_attributed, "session_id", "B")
     den_a = variant_population["A"]
     den_b = variant_population["B"]
     rate_a = num_a / den_a if den_a > 0 else float("nan")
@@ -170,14 +172,14 @@ def compute_redirect_trends(
 ) -> tuple[DailyTrend, DailyTrend]:
     """Charts 3 (redirect_abs) and 4 (redirect_ratio).
 
-    Chart 3 numerator: distinct utids / chat_sessions in `redirect_attributed`.
-    Chart 4 denominator: distinct INTENT utids / chat_sessions per (dt, variant).
+    Chart 3 numerator: distinct session_ids / chat_sessions in `redirect_attributed`.
+    Chart 4 denominator: distinct INTENT session_ids / chat_sessions per (dt, variant).
     """
     intent = chat_with_variant[
         chat_with_variant["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"
     ]
 
-    abs_utid = _daily_distinct(redirect_attributed, "utid", drop_empty_session=False)
+    abs_session_id = _daily_distinct(redirect_attributed, "session_id", drop_empty_session=False)
     abs_session = _daily_distinct(
         redirect_attributed, "chat_session_id", drop_empty_session=True
     )
@@ -185,21 +187,21 @@ def compute_redirect_trends(
         chart_id="redirect_abs",
         title="Daily redirect-attributed count (INTENT_RECOGNITION only)",
         y_label="Distinct count",
-        utid_panel=abs_utid,
+        session_id_panel=abs_session_id,
         chat_session_panel=abs_session,
     )
 
-    intent_utid = _daily_distinct(intent, "utid", drop_empty_session=False)
+    intent_session_id = _daily_distinct(intent, "session_id", drop_empty_session=False)
     intent_session = _daily_distinct(
         intent, "chat_session_id", drop_empty_session=True
     )
-    ratio_utid = _ratio_panel(abs_utid, intent_utid)
+    ratio_session_id = _ratio_panel(abs_session_id, intent_session_id)
     ratio_session = _ratio_panel(abs_session, intent_session)
     chart_ratio = DailyTrend(
         chart_id="redirect_ratio",
         title="Daily redirect ÷ INTENT_RECOGNITION rate",
         y_label="Redirect rate",
-        utid_panel=ratio_utid,
+        session_id_panel=ratio_session_id,
         chat_session_panel=ratio_session,
     )
 

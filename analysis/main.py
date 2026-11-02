@@ -32,6 +32,7 @@ from analysis.render import (
 )
 
 DEFAULT_EXPERIMENT = "ai-filter-entrance"
+EXPERIMENTS_DIR = "experiments"
 
 
 def _now() -> float:
@@ -52,8 +53,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--experiment",
         default=DEFAULT_EXPERIMENT,
-        help="Experiment directory name under the project root (default: %(default)s). "
-        "Data is read from <experiment>/data/, report written to <experiment>/output/report.html.",
+        help="Experiment directory name under experiments/ (default: %(default)s). "
+        "Data is read from experiments/<experiment>/data/, report written to "
+        "experiments/<experiment>/output/report.html.",
     )
     parser.add_argument(
         "--data-dir",
@@ -84,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     stats_module.ALPHA = args.alpha
     stats_module.FLAT_THRESHOLD_PCT = args.flat_threshold
 
-    experiment_root = Path(args.experiment)
+    experiment_root = Path(EXPERIMENTS_DIR) / args.experiment
     data_dir = Path(args.data_dir) if args.data_dir else experiment_root / "data"
     output_path = (
         Path(args.output) if args.output else experiment_root / "output" / "report.html"
@@ -108,12 +110,12 @@ def main(argv: list[str] | None = None) -> int:
         t0 = _now()
         _, excluded = build_variant_lookup(bundle.ots_chat)
         pop = compute_variant_population(bundle.ots_chat, excluded)
-        chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+        chat = bundle.ots_chat[~bundle.ots_chat["session_id"].isin(excluded)]
         if bundle.actions is not None:
-            _act = bundle.actions[~bundle.actions["utid"].isin(excluded)]
+            _act = bundle.actions[~bundle.actions["session_id"].isin(excluded)]
             _act_counts = (
-                _act.drop_duplicates(["utid", "variant"])
-                .groupby("variant", observed=True)["utid"]
+                _act.drop_duplicates(["session_id", "variant"])
+                .groupby("variant", observed=True)["session_id"]
                 .nunique()
             )
             action_population: dict[str, int] | None = {
@@ -124,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         _stage(
             args.verbose,
             "validate",
-            f"{len(excluded)} utids excluded for in-file variant conflict",
+            f"{len(excluded)} session_ids excluded for in-file variant conflict",
             t0,
         )
 
@@ -158,10 +160,16 @@ def main(argv: list[str] | None = None) -> int:
         red_metrics_all = compute_redirect_metrics(attributed_all, chat)
         red_metrics_intent = compute_redirect_metrics(attributed_intent, intent_chat)
         funnel = compute_redirect_funnel_metric(attributed_all, pop)
+
+        booking_all = attributed_all[attributed_all["is_booking"] == 1]
+        booking_intent = attributed_intent[attributed_intent["is_booking"] == 1]
+        booking_metrics_all = compute_redirect_metrics(booking_all, chat)
+        booking_metrics_intent = compute_redirect_metrics(booking_intent, intent_chat)
         _stage(
             args.verbose,
             "redirect",
-            f"all={len(attributed_all):,} / intent={len(attributed_intent):,} attributed redirects",
+            f"all={len(attributed_all):,} / intent={len(attributed_intent):,} attributed redirects"
+            f"; booking_all={len(booking_all):,} / booking_intent={len(booking_intent):,}",
             t0,
         )
 
@@ -188,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         plugin_tests = sum(ps.test_count for ps in plugin_sections)
         total_tests = (
             len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent)
+            + len(booking_metrics_all) + len(booking_metrics_intent)
             + 1 + 1 + plugin_tests
         )
         ctx = ReportContext(
@@ -195,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
             generated_at=make_generated_at(),
             date_range=(bundle.ots_chat["dt"].min(), bundle.ots_chat["dt"].max()),
             variant_population=pop,
-            excluded_utids_count=len(excluded),
+            excluded_session_ids_count=len(excluded),
             flat_threshold_pct=args.flat_threshold,
             alpha=args.alpha,
             total_tests=total_tests,
@@ -206,6 +215,8 @@ def main(argv: list[str] | None = None) -> int:
             redirect_metrics_all=red_metrics_all,
             redirect_metrics_intent=red_metrics_intent,
             redirect_funnel_metric=funnel,
+            booking_metrics_all=booking_metrics_all,
+            booking_metrics_intent=booking_metrics_intent,
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
             action_rows=action_rows,

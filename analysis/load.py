@@ -4,7 +4,7 @@ Primary CSVs are `ots_chat.csv` and `redirects.csv`. `actions.csv` is loaded
 optionally (present → included in row counts and frontend variant population;
 absent → skipped silently).
 
-Variant labels come from `ots_chat.csv` only. If the same `utid` appears with
+Variant labels come from `ots_chat.csv` only. If the same `session_id` appears with
 both `A` and `B` labels within `ots_chat.csv`, those rows are dropped from
 comparative analysis.
 """
@@ -21,7 +21,7 @@ REDIRECTS_FILE = "redirects.csv"
 ACTIONS_FILE = "actions.csv"
 
 OTS_CHAT_DTYPES: dict[str, str] = {
-    "utid": "string",
+    "session_id": "string",
     "chat_session_id": "string",
     "chat_type": "category",
     "rounds": "Int32",
@@ -31,12 +31,13 @@ OTS_CHAT_DTYPES: dict[str, str] = {
 }
 
 REDIRECTS_DTYPES: dict[str, str] = {
-    "utid": "string",
+    "session_id": "string",
     "pre_redirect_id": "string",
+    "is_booking": "Int64",
 }
 
 ACTIONS_DTYPES: dict[str, str] = {
-    "utid": "string",
+    "session_id": "string",
     "variant": "category",
 }
 
@@ -78,33 +79,33 @@ def load_data(data_dir: str | Path) -> DataBundle:
 
 
 def build_variant_lookup(ots_chat: pd.DataFrame) -> tuple[pd.Series, set[str]]:
-    """Build `utid -> variant` from `ots_chat`.
+    """Build `session_id -> variant` from `ots_chat`.
 
-    Returns (variant_lookup, excluded_utids) where excluded_utids is the set
-    of utids that appear with both `A` and `B` within `ots_chat.csv` (in-file
-    conflict). Conflicting utids are excluded from the lookup.
+    Returns (variant_lookup, excluded_session_ids) where excluded_session_ids is the set
+    of session_ids that appear with both `A` and `B` within `ots_chat.csv` (in-file
+    conflict). Conflicting session_ids are excluded from the lookup.
     """
-    pairs = ots_chat[["utid", "variant"]].drop_duplicates()
-    variant_counts = pairs.groupby("utid", observed=True)["variant"].nunique()
+    pairs = ots_chat[["session_id", "variant"]].drop_duplicates()
+    variant_counts = pairs.groupby("session_id", observed=True)["variant"].nunique()
     excluded = set(variant_counts[variant_counts > 1].index.astype(str))
 
-    clean = pairs[~pairs["utid"].isin(excluded)]
-    lookup = clean.set_index("utid")["variant"].astype("string")
+    clean = pairs[~pairs["session_id"].isin(excluded)]
+    lookup = clean.set_index("session_id")["variant"].astype("string")
     return lookup, excluded
 
 
 def compute_variant_population(
-    ots_chat: pd.DataFrame, excluded_utids: set[str]
+    ots_chat: pd.DataFrame, excluded_session_ids: set[str]
 ) -> dict[str, int]:
-    """Return the count of distinct utids per variant in `ots_chat`.
+    """Return the count of distinct session_ids per variant in `ots_chat`.
 
     The denominator for FR-013 funnel rates: users who had at least one
     chat event of either type (SUGGESTIONS or INTENT_RECOGNITION).
     """
-    clean = ots_chat[~ots_chat["utid"].isin(excluded_utids)]
+    clean = ots_chat[~ots_chat["session_id"].isin(excluded_session_ids)]
     counts = (
-        clean.drop_duplicates(["utid", "variant"])
-        .groupby("variant", observed=True)["utid"]
+        clean.drop_duplicates(["session_id", "variant"])
+        .groupby("variant", observed=True)["session_id"]
         .nunique()
     )
     return {str(v): int(counts.get(v, 0)) for v in ("A", "B")}

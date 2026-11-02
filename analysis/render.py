@@ -198,7 +198,7 @@ class ReportContext:
     generated_at: datetime
     date_range: tuple[pd.Timestamp, pd.Timestamp]
     variant_population: dict[str, int]
-    excluded_utids_count: int
+    excluded_session_ids_count: int
     flat_threshold_pct: float
     alpha: float
     total_tests: int
@@ -210,6 +210,8 @@ class ReportContext:
     redirect_metrics_all: list[RedirectMetric]
     redirect_metrics_intent: list[RedirectMetric]
     redirect_funnel_metric: RedirectFunnelMetric
+    booking_metrics_all: list[RedirectMetric]
+    booking_metrics_intent: list[RedirectMetric]
 
     chat_rows: int
     redirect_rows: int
@@ -258,7 +260,7 @@ def render_report(context: ReportContext, output_path: Path) -> int:
     })
     redirect_charts["redirect_funnel"] = build_static_chart_redirect(
         context.redirect_funnel_metric,
-        label="Funnel rate (utids with redirect / variant_population)",
+        label="Funnel rate (session_ids with redirect / variant_population)",
         div_id="chart-red-funnel",
     )
     plugin_section_htmls: list[str] = []

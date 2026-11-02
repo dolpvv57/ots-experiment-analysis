@@ -26,7 +26,7 @@ def setup(fixtures_dir: Path):
     bundle = load_data(fixtures_dir)
     _, excluded = build_variant_lookup(bundle.ots_chat)
     pop = compute_variant_population(bundle.ots_chat, excluded)
-    chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+    chat = bundle.ots_chat[~bundle.ots_chat["session_id"].isin(excluded)]
     attributed = build_redirect_attributed(chat, bundle.redirects)
     return chat, pop, attributed
 
@@ -52,12 +52,12 @@ def test_attribution_drops_unmatched_redirects(setup) -> None:
     assert "c_unknown" not in set(attributed["correlation_id"])
 
 
-def test_redirect_metric_per_utid(setup) -> None:
-    """A: 0/{u1}=0%; B: 2/3≈66.67% (B redirect utids: u3, u4 of {u3, u4, u6})."""
+def test_redirect_metric_per_session_id(setup) -> None:
+    """A: 0/{u1}=0%; B: 2/3≈66.67% (B redirect session_ids: u3, u4 of {u3, u4, u6})."""
     chat, _, attributed = setup
     intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
     metrics = compute_redirect_metrics(attributed, intent_chat)
-    m = _by_dim(metrics, "utid")
+    m = _by_dim(metrics, "session_id")
     assert m.numerator_A == 0
     assert m.denominator_A == 1
     assert m.numerator_B == 2
@@ -104,11 +104,46 @@ def test_redirect_trends_abs(setup) -> None:
     abs_chart, _ratio = compute_redirect_trends(chat, attributed)
     assert abs_chart.chart_id == "redirect_abs"
 
-    utid = abs_chart.utid_panel
-    apr10_b = utid[(utid["dt"] == pd.Timestamp("2026-04-10")) & (utid["variant"] == "B")]
-    apr11_b = utid[(utid["dt"] == pd.Timestamp("2026-04-11")) & (utid["variant"] == "B")]
+    session_id = abs_chart.session_id_panel
+    apr10_b = session_id[(session_id["dt"] == pd.Timestamp("2026-04-10")) & (session_id["variant"] == "B")]
+    apr11_b = session_id[(session_id["dt"] == pd.Timestamp("2026-04-11")) & (session_id["variant"] == "B")]
     assert apr10_b["value"].iloc[0] == 1  # u3
     assert apr11_b["value"].iloc[0] == 1  # u4
+
+
+def test_booking_metric_overall_per_session_id(setup) -> None:
+    """Overall booking (Block 2): denominator = all chat; numerator = booking-attributed.
+
+    Fixture: redirects is_booking=1 for c5 (u3) and c8 (u4); c7 (u4, also booking)
+    is_booking=0. Booking-attributed session_ids: {u3, u4}, both variant B.
+    All-chat session_ids: A={u1, u2}=2; B={u3, u4, u5, u6}=4.
+    """
+    chat, _, attributed = setup
+    booking = attributed[attributed["is_booking"] == 1]
+    metrics = compute_redirect_metrics(booking, chat)
+    m = _by_dim(metrics, "session_id")
+    assert m.numerator_A == 0
+    assert m.denominator_A == 2
+    assert m.numerator_B == 2
+    assert m.denominator_B == 4
+    assert math.isclose(m.rate_B, 0.5)
+
+
+def test_booking_metric_intent_per_session_id(setup) -> None:
+    """From chat to booking (Block 4): denominator = INTENT-only chat.
+
+    INTENT session_ids: A={u1}=1; B={u3, u4, u6}=3. Booking-attributed: {u3, u4}.
+    """
+    chat, _, attributed = setup
+    intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+    booking = attributed[attributed["is_booking"] == 1]
+    metrics = compute_redirect_metrics(booking, intent_chat)
+    m = _by_dim(metrics, "session_id")
+    assert m.numerator_A == 0
+    assert m.denominator_A == 1
+    assert m.numerator_B == 2
+    assert m.denominator_B == 3
+    assert math.isclose(m.rate_B, 2 / 3)
 
 
 def test_redirect_trends_ratio(setup) -> None:
@@ -116,10 +151,10 @@ def test_redirect_trends_ratio(setup) -> None:
     _abs, ratio_chart = compute_redirect_trends(chat, attributed)
     assert ratio_chart.chart_id == "redirect_ratio"
 
-    utid = ratio_chart.utid_panel
-    # 2026-04-10 B: redirect_utids={u3}=1, INTENT_utids={u3}=1 → 1.0.
-    row = utid[(utid["dt"] == pd.Timestamp("2026-04-10")) & (utid["variant"] == "B")]
+    session_id = ratio_chart.session_id_panel
+    # 2026-04-10 B: redirect_session_ids={u3}=1, INTENT_session_ids={u3}=1 → 1.0.
+    row = session_id[(session_id["dt"] == pd.Timestamp("2026-04-10")) & (session_id["variant"] == "B")]
     assert math.isclose(row["value"].iloc[0], 1.0)
-    # 2026-04-11 B: redirect_utids={u4}=1, INTENT_utids={u4, u6}=2 → 0.5.
-    row = utid[(utid["dt"] == pd.Timestamp("2026-04-11")) & (utid["variant"] == "B")]
+    # 2026-04-11 B: redirect_session_ids={u4}=1, INTENT_session_ids={u4, u6}=2 → 0.5.
+    row = session_id[(session_id["dt"] == pd.Timestamp("2026-04-11")) & (session_id["variant"] == "B")]
     assert math.isclose(row["value"].iloc[0], 0.5)
