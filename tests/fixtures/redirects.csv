@@ -1,5 +1,5 @@
-dt,session_id,pre_redirect_id
-2026-04-10,u3,c5
-2026-04-11,u4,c7
-2026-04-11,u4,c8
-2026-04-11,u_unknown,c_unknown
+dt,session_id,pre_redirect_id,is_booking
+2026-04-10,u3,c5,1
+2026-04-11,u4,c7,0
+2026-04-11,u4,c8,1
+2026-04-11,u_unknown,c_unknown,0

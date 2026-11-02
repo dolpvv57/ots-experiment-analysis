@@ -160,10 +160,16 @@ def main(argv: list[str] | None = None) -> int:
         red_metrics_all = compute_redirect_metrics(attributed_all, chat)
         red_metrics_intent = compute_redirect_metrics(attributed_intent, intent_chat)
         funnel = compute_redirect_funnel_metric(attributed_all, pop)
+
+        booking_all = attributed_all[attributed_all["is_booking"] == 1]
+        booking_intent = attributed_intent[attributed_intent["is_booking"] == 1]
+        booking_metrics_all = compute_redirect_metrics(booking_all, chat)
+        booking_metrics_intent = compute_redirect_metrics(booking_intent, intent_chat)
         _stage(
             args.verbose,
             "redirect",
-            f"all={len(attributed_all):,} / intent={len(attributed_intent):,} attributed redirects",
+            f"all={len(attributed_all):,} / intent={len(attributed_intent):,} attributed redirects"
+            f"; booking_all={len(booking_all):,} / booking_intent={len(booking_intent):,}",
             t0,
         )
 
@@ -190,6 +196,7 @@ def main(argv: list[str] | None = None) -> int:
         plugin_tests = sum(ps.test_count for ps in plugin_sections)
         total_tests = (
             len(eng_metrics) + len(red_metrics_all) + len(red_metrics_intent)
+            + len(booking_metrics_all) + len(booking_metrics_intent)
             + 1 + 1 + plugin_tests
         )
         ctx = ReportContext(
@@ -208,6 +215,8 @@ def main(argv: list[str] | None = None) -> int:
             redirect_metrics_all=red_metrics_all,
             redirect_metrics_intent=red_metrics_intent,
             redirect_funnel_metric=funnel,
+            booking_metrics_all=booking_metrics_all,
+            booking_metrics_intent=booking_metrics_intent,
             chat_rows=chat_rows,
             redirect_rows=redirect_rows,
             action_rows=action_rows,

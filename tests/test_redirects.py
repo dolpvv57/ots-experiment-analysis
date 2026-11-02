@@ -111,6 +111,41 @@ def test_redirect_trends_abs(setup) -> None:
     assert apr11_b["value"].iloc[0] == 1  # u4
 
 
+def test_booking_metric_overall_per_session_id(setup) -> None:
+    """Overall booking (Block 2): denominator = all chat; numerator = booking-attributed.
+
+    Fixture: redirects is_booking=1 for c5 (u3) and c8 (u4); c7 (u4, also booking)
+    is_booking=0. Booking-attributed session_ids: {u3, u4}, both variant B.
+    All-chat session_ids: A={u1, u2}=2; B={u3, u4, u5, u6}=4.
+    """
+    chat, _, attributed = setup
+    booking = attributed[attributed["is_booking"] == 1]
+    metrics = compute_redirect_metrics(booking, chat)
+    m = _by_dim(metrics, "session_id")
+    assert m.numerator_A == 0
+    assert m.denominator_A == 2
+    assert m.numerator_B == 2
+    assert m.denominator_B == 4
+    assert math.isclose(m.rate_B, 0.5)
+
+
+def test_booking_metric_intent_per_session_id(setup) -> None:
+    """From chat to booking (Block 4): denominator = INTENT-only chat.
+
+    INTENT session_ids: A={u1}=1; B={u3, u4, u6}=3. Booking-attributed: {u3, u4}.
+    """
+    chat, _, attributed = setup
+    intent_chat = chat[chat["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION"]
+    booking = attributed[attributed["is_booking"] == 1]
+    metrics = compute_redirect_metrics(booking, intent_chat)
+    m = _by_dim(metrics, "session_id")
+    assert m.numerator_A == 0
+    assert m.denominator_A == 1
+    assert m.numerator_B == 2
+    assert m.denominator_B == 3
+    assert math.isclose(m.rate_B, 2 / 3)
+
+
 def test_redirect_trends_ratio(setup) -> None:
     chat, _, attributed = setup
     _abs, ratio_chart = compute_redirect_trends(chat, attributed)

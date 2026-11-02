@@ -1,7 +1,9 @@
 """Redirect attribution + redirect-rate metrics.
 
 Implements:
-- `build_redirect_attributed`: INTENT chat rows × redirects.csv on correlation_id.
+- `build_redirect_attributed`: INTENT chat rows × redirects.csv on correlation_id,
+  carrying through redirects.is_booking so callers can derive booking metrics by
+  filtering the result to is_booking == 1 and re-calling `compute_redirect_metrics`.
 - `compute_redirect_metrics`: 4 RedirectMetric rows (one per dimension).
 - `compute_redirect_funnel_metric`: per-FR-013 funnel rate.
 - `compute_redirect_trends`: charts 3 (redirect_abs) and 4 (redirect_ratio).
@@ -46,7 +48,7 @@ def build_redirect_attributed(
         if intent_only
         else chat_with_variant
     )
-    redirect_keys = redirects[["session_id", "pre_redirect_id"]].drop_duplicates()
+    redirect_keys = redirects[["session_id", "pre_redirect_id", "is_booking"]].drop_duplicates()
     attributed = chat.merge(
         redirect_keys,
         left_on=["session_id", "correlation_id"],
@@ -54,7 +56,7 @@ def build_redirect_attributed(
         how="inner",
     )
     return attributed[
-        ["session_id", "chat_session_id", "request_id", "correlation_id", "variant", "dt"]
+        ["session_id", "chat_session_id", "request_id", "correlation_id", "variant", "dt", "is_booking"]
     ]
 
 

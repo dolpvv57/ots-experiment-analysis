@@ -33,6 +33,7 @@ OTS_CHAT_DTYPES: dict[str, str] = {
 REDIRECTS_DTYPES: dict[str, str] = {
     "session_id": "string",
     "pre_redirect_id": "string",
+    "is_booking": "Int64",
 }
 
 ACTIONS_DTYPES: dict[str, str] = {

@@ -143,18 +143,17 @@
     </tr>
   </thead>
   <tbody>
-    {% for dim in ["session_id", "chat_session_id", "request_id", "correlation_id"] %}
+    {% for dim in ["session_id", "request_id", "correlation_id"] %}
     {% set intent = _intent_map[dim] %}
-    {% set blank = (dim == "chat_session_id") %}
     <tr>
       <td>{{ dim }}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(intent.count_A) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ intent.value_A|fmt_pct }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(intent.count_B) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ intent.value_B|fmt_pct }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ intent.rel_lift_pct|fmt_lift }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ intent.p_value|fmt_p }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ intent.directional_verdict }} / {{ intent.significance_verdict.replace('_', ' ') }}{% endif %}</td>
+      <td>{{ "{:,}".format(intent.count_A) }}</td>
+      <td>{{ intent.value_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(intent.count_B) }}</td>
+      <td>{{ intent.value_B|fmt_pct }}</td>
+      <td>{{ intent.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ intent.p_value|fmt_p }}</td>
+      <td>{{ intent.directional_verdict }} / {{ intent.significance_verdict.replace('_', ' ') }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -232,11 +231,12 @@
 {% endif %}
 </section>
 
-{# ============== REDIRECT ============== #}
+{# ============== REDIRECT & BOOKING ============== #}
 <section id="redirect">
-<h2>Redirect Analysis</h2>
+<h2>Conversion Analysis</h2>
 <p class="muted">
   Redirect count: distinct dimension values matched to a redirect via (session_id, correlation_id ↔ pre_redirect_id).<br>
+  Booking count: redirect-matched rows further restricted to redirects.is_booking = 1.<br>
   p-value: two-proportion z-test (α = 0.05).
 </p>
 
@@ -260,27 +260,64 @@
     </tr>
   </thead>
   <tbody>
-    {% for m in ctx.redirect_metrics_all %}
-    {% set blank = (m.dimension == "chat_session_id") %}
+    {% for m in ctx.redirect_metrics_all if m.dimension != "chat_session_id" %}
     <tr>
       <td>{{ m.dimension }}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(m.denominator_A) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(m.numerator_A) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.rate_A|fmt_pct }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(m.denominator_B) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ "{:,}".format(m.numerator_B) }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.rate_B|fmt_pct }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.abs_diff|fmt_pp }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.rel_lift_pct|fmt_lift }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.p_value|fmt_p }}{% endif %}</td>
-      <td>{% if blank %}—{% else %}{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}{% endif %}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-{# ---- Block 2: From chat to redirect ---- #}
-<h3>Block 2: From chat to redirect</h3>
+{# ---- Block 2: Overall booking ---- #}
+<h3>Block 2: Overall booking</h3>
+<p class="muted">All users: distinct dimension values across all chat rows (SUGGESTIONS + INTENT), restricted to is_booking = 1.</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2">Dimension</th>
+      <th colspan="3" style="text-align:center">A</th>
+      <th colspan="3" style="text-align:center">B</th>
+      <th rowspan="2">Δ (pp)</th>
+      <th rowspan="2">Rel. lift</th>
+      <th rowspan="2">p-value</th>
+      <th rowspan="2">Verdict</th>
+    </tr>
+    <tr>
+      <th>All users</th><th style="width:100px">Booking count</th><th>Rate</th>
+      <th>All users</th><th style="width:100px">Booking count</th><th>Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.booking_metrics_all if m.dimension != "chat_session_id" %}
+    <tr>
+      <td>{{ m.dimension }}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# ---- Block 3: From chat to redirect ---- #}
+<h3>Block 3: From chat to redirect</h3>
 <p class="muted">Chat users: distinct dimension values among CHAT_TYPE_INTENT_RECOGNITION rows only.</p>
 <table style="width:auto">
   <thead>
@@ -316,6 +353,44 @@
     {% endfor %}
   </tbody>
 </table>
+
+{# ---- Block 4: From chat to booking ---- #}
+<h3>Block 4: From chat to booking</h3>
+<p class="muted">Chat users: distinct dimension values among CHAT_TYPE_INTENT_RECOGNITION rows only, restricted to is_booking = 1.</p>
+<table style="width:auto">
+  <thead>
+    <tr>
+      <th rowspan="2">Dimension</th>
+      <th colspan="3" style="text-align:center">A</th>
+      <th colspan="3" style="text-align:center">B</th>
+      <th rowspan="2">Δ (pp)</th>
+      <th rowspan="2">Rel. lift</th>
+      <th rowspan="2">p-value</th>
+      <th rowspan="2">Verdict</th>
+    </tr>
+    <tr>
+      <th>Chat users</th><th style="width:100px">Booking count</th><th>Rate</th>
+      <th>Chat users</th><th style="width:100px">Booking count</th><th>Rate</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in ctx.booking_metrics_intent %}
+    <tr>
+      <td>{{ m.dimension }}</td>
+      <td>{{ "{:,}".format(m.denominator_A) }}</td>
+      <td>{{ "{:,}".format(m.numerator_A) }}</td>
+      <td>{{ m.rate_A|fmt_pct }}</td>
+      <td>{{ "{:,}".format(m.denominator_B) }}</td>
+      <td>{{ "{:,}".format(m.numerator_B) }}</td>
+      <td>{{ m.rate_B|fmt_pct }}</td>
+      <td>{{ m.abs_diff|fmt_pp }}</td>
+      <td>{{ m.rel_lift_pct|fmt_lift }}</td>
+      <td>{{ m.p_value|fmt_p }}</td>
+      <td>{{ m.directional_verdict }} / {{ m.significance_verdict.replace('_', ' ') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 </section>
 
 {# ============== EXPERIMENT-SPECIFIC SECTIONS (plugins) ============== #}
@@ -333,6 +408,7 @@
   <li><strong>Rounds per session (Block 2):</strong> per INTENT_RECOGNITION session, the maximum <code>rounds</code> value is taken as the session depth. Mean and median are compared across variants; significance is assessed with Welch's t-test.</li>
   <li><strong>Frontend funnel (Block 3):</strong> denominator is distinct session_ids with <code>CHAT_BOX_ENTRY_LOADED</code> in actions.csv. Click rate = ENTRY_CLICK session_ids / load session_ids; chat rate = INTENT_RECOGNITION session_ids (from ots_chat) / load session_ids.</li>
   <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its <code>correlation_id</code> appears in <code>redirects.pre_redirect_id</code>. SUGGESTIONS rows are excluded from the intent-only table.</li>
+  <li><strong>Booking attribution (Blocks 2 &amp; 4):</strong> redirect-attributed rows further filtered to <code>redirects.is_booking == 1</code>. Denominators are unchanged from Block 1 (Block 2) and Block 3 (Block 4).</li>
   <li><strong>Statistical tests:</strong> two-proportion z-test for all rate metrics; Welch's t-test for rounds mean. α = {{ ctx.alpha }}. Two-sided. "significant" iff p &lt; {{ ctx.alpha }}.</li>
 </ul>
 

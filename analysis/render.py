@@ -210,6 +210,8 @@ class ReportContext:
     redirect_metrics_all: list[RedirectMetric]
     redirect_metrics_intent: list[RedirectMetric]
     redirect_funnel_metric: RedirectFunnelMetric
+    booking_metrics_all: list[RedirectMetric]
+    booking_metrics_intent: list[RedirectMetric]
 
     chat_rows: int
     redirect_rows: int
