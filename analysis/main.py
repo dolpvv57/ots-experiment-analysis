@@ -110,12 +110,12 @@ def main(argv: list[str] | None = None) -> int:
         t0 = _now()
         _, excluded = build_variant_lookup(bundle.ots_chat)
         pop = compute_variant_population(bundle.ots_chat, excluded)
-        chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+        chat = bundle.ots_chat[~bundle.ots_chat["session_id"].isin(excluded)]
         if bundle.actions is not None:
-            _act = bundle.actions[~bundle.actions["utid"].isin(excluded)]
+            _act = bundle.actions[~bundle.actions["session_id"].isin(excluded)]
             _act_counts = (
-                _act.drop_duplicates(["utid", "variant"])
-                .groupby("variant", observed=True)["utid"]
+                _act.drop_duplicates(["session_id", "variant"])
+                .groupby("variant", observed=True)["session_id"]
                 .nunique()
             )
             action_population: dict[str, int] | None = {
@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         _stage(
             args.verbose,
             "validate",
-            f"{len(excluded)} utids excluded for in-file variant conflict",
+            f"{len(excluded)} session_ids excluded for in-file variant conflict",
             t0,
         )
 
@@ -197,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
             generated_at=make_generated_at(),
             date_range=(bundle.ots_chat["dt"].min(), bundle.ots_chat["dt"].max()),
             variant_population=pop,
-            excluded_utids_count=len(excluded),
+            excluded_session_ids_count=len(excluded),
             flat_threshold_pct=args.flat_threshold,
             alpha=args.alpha,
             total_tests=total_tests,

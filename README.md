@@ -99,16 +99,16 @@ pytest tests/ -v
 Every report includes:
 
 - **Summary**: AI-generated verdict placeholder
-- **Data overview**: row counts per file, distinct utids per variant from backend (ots_chat) and frontend (actions)
+- **Data overview**: row counts per file, distinct session_ids per variant from backend (ots_chat) and frontend (actions)
 - **Engagement analysis**:
-  - Block 1 — Backend chat engagement: INTENT_RECOGNITION rate per dimension (utid, request_id, correlation_id), A/B counts and rates with z-test
+  - Block 1 — Backend chat engagement: INTENT_RECOGNITION rate per dimension (session_id, request_id, correlation_id), A/B counts and rates with z-test
   - Block 2 — Rounds per session: mean and median rounds per INTENT session, Welch's t-test
   - Block 3 — Frontend funnel: load → click → chat rates per variant, z-test
 - **Redirect analysis**:
   - Overall redirect: redirect rate across all users per dimension
   - From chat to redirect: redirect rate among INTENT_RECOGNITION users only per dimension
 - **Experiment-specific section** (appended automatically if the experiment directory contains a `plugin.py`)
-- **Appendix**: methodology notes, multiple-comparisons annotation, excluded utid count
+- **Appendix**: methodology notes, multiple-comparisons annotation, excluded session_id count
 
 ---
 
@@ -150,11 +150,11 @@ from analysis.load import DataBundle
 TEMPLATE_FRAGMENT = "templates/section.html.j2"
 
 # Required: run the analysis and return any dataclass
-def compute(bundle: DataBundle, excluded_utids: set[str]) -> MySection:
+def compute(bundle: DataBundle, excluded_session_ids: set[str]) -> MySection:
     # bundle.ots_chat   — DataFrame from ots_chat.csv
     # bundle.redirects  — DataFrame from redirects.csv
     # bundle.data_dir   — path to the data/ directory (for reading other CSVs)
-    # excluded_utids    — set of utids excluded due to variant conflicts
+    # excluded_session_ids — set of session_ids excluded due to variant conflicts
     ...
 
 # Required: how many statistical hypothesis tests this section contributes
@@ -189,7 +189,7 @@ TEMPLATE_FRAGMENT = "templates/section.html.j2"
 class MySection:
     total_actions: int
 
-def compute(bundle: DataBundle, excluded_utids: set[str]) -> MySection:
+def compute(bundle: DataBundle, excluded_session_ids: set[str]) -> MySection:
     actions = __import__("pandas").read_csv(bundle.data_dir / "actions.csv")
     return MySection(total_actions=len(actions))
 
@@ -212,14 +212,14 @@ def count_tests(section: MySection) -> int:
 - Variant A: control group. 
 - Variant B: treatment group.
 - `ots_chat.csv`: built from backend data. Contains per-session chat fields, enriched with `request_id` and `correlation_id` via `hotel_result_event`, and with variant assignment via the experiment table. 
-- `redirects.csv`: redirect event data. Linked to other tables via `(utid, correlation_id)`.
+- `redirects.csv`: redirect event data. Linked to other tables via `(session_id, correlation_id)`.
 - `actions.csv`: built from frontend event data. Contains user behavior fields, enriched with variant assignment via the experiment table.
 
 ### ots_chat.csv fields
 
 | Field | Description |
 |-------|-------------|
-| `utid` | User identifier |
+| `session_id` | User identifier |
 | `chat_session_id` | Chat session ID (null when `chat_type` is `CHAT_TYPE_SUGGESTIONS`) |
 | `chat_type` | `CHAT_TYPE_SUGGESTIONS` or `CHAT_TYPE_INTENT_RECOGNITION` |
 | `rounds` | Number of max rounds in this session |
@@ -232,7 +232,7 @@ def count_tests(section: MySection) -> int:
 
 | Field | Description |
 |-------|-------------|
-| `utid` | User identifier |
+| `session_id` | User identifier |
 | `pre_redirect_id` | Corresponds to `ots_chat.correlation_id` |
 | `dt` | Date |
 
@@ -240,7 +240,7 @@ def count_tests(section: MySection) -> int:
 
 | Field | Description |
 |-------|-------------|
-| `utid` | User identifier |
+| `session_id` | User identifier |
 | `action_type` | Frontend event type |
 | `traffic_source` | Traffic source of the session |
 | `chat_box_entry_loaded` | JSON payload for the load event |
@@ -255,7 +255,7 @@ def count_tests(section: MySection) -> int:
 | File | Responsibility |
 |------|----------------|
 | `analysis/main.py` | CLI entry point; orchestrates the analysis pipeline; auto-discovers and runs `<experiment>/plugin.py` |
-| `analysis/load.py` | Reads CSVs; builds variant lookup; excludes conflicting utids |
+| `analysis/load.py` | Reads CSVs; builds variant lookup; excludes conflicting session_ids |
 | `analysis/engagement.py` | 8 engagement metrics + rounds + daily trend |
 | `analysis/redirects.py` | Redirect rate metrics (4 dimensions + funnel) + daily trend |
 | `analysis/stats.py` | Two-proportion z-test, Welch t-test, 95% confidence intervals |

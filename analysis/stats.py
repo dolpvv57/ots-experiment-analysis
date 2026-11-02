@@ -51,7 +51,7 @@ def two_proportion_z_test(
     """Wald z-test comparing two rates with a 95% CI for B − A.
 
     Uses the Bernoulli variance formula `p(1-p)/n` when both p1 and p2 lie in
-    [0, 1] (true proportion case — e.g. utid-level metrics). Otherwise falls
+    [0, 1] (true proportion case — e.g. session_id-level metrics). Otherwise falls
     back to the Poisson variance formula `count/n^2`, which generalizes to
     count-per-user rates that can exceed 1 (e.g. correlation_id-per-user).
     """

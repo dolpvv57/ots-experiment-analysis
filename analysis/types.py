@@ -78,7 +78,7 @@ class RedirectMetric:
 
 @dataclass(frozen=True)
 class RedirectFunnelMetric:
-    """Per-FR-013 funnel metric: distinct utids with redirect / variant_population."""
+    """Per-FR-013 funnel metric: distinct session_ids with redirect / variant_population."""
 
     metric: str  # "redirect_rate_per_chat_user"
     numerator_A: int
@@ -98,9 +98,9 @@ class RedirectFunnelMetric:
 
 @dataclass(frozen=True)
 class LoadFunnelMetric:
-    """Load → click / chat funnel: denominator is ENTRY_LOADED distinct utids per variant.
+    """Load → click / chat funnel: denominator is ENTRY_LOADED distinct session_ids per variant.
 
-    click = ENTRY_CLICK distinct utids; chat = INTENT_RECOGNITION distinct utids.
+    click = ENTRY_CLICK distinct session_ids; chat = INTENT_RECOGNITION distinct session_ids.
     p-values are two-proportion z-tests comparing A vs B.
     None when actions.csv was absent.
     """
@@ -135,5 +135,5 @@ class DailyTrend:
     chart_id: str  # "engagement_abs" | "engagement_ratio" | "redirect_abs" | "redirect_ratio"
     title: str
     y_label: str
-    utid_panel: pd.DataFrame
+    session_id_panel: pd.DataFrame
     chat_session_panel: pd.DataFrame

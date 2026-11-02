@@ -20,7 +20,7 @@ from analysis.stats import (
 from analysis.types import EngagementMetric, LoadFunnelMetric, RoundsMetric
 
 CHAT_TYPES = ("CHAT_TYPE_SUGGESTIONS", "CHAT_TYPE_INTENT_RECOGNITION")
-DIMENSIONS = ("utid", "chat_session_id", "request_id", "correlation_id")
+DIMENSIONS = ("session_id", "chat_session_id", "request_id", "correlation_id")
 
 
 def _distinct_count(
@@ -130,9 +130,9 @@ def compute_load_funnel_metric(
 ) -> LoadFunnelMetric:
     """Load → click / chat funnel.
 
-    load  = distinct utids with CHAT_BOX_ENTRY_LOADED in actions (denominator).
-    click = distinct utids with CHAT_BOX_ENTRY_CLICK in actions.
-    chat  = distinct utids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat.
+    load  = distinct session_ids with CHAT_BOX_ENTRY_LOADED in actions (denominator).
+    click = distinct session_ids with CHAT_BOX_ENTRY_CLICK in actions.
+    chat  = distinct session_ids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat.
     Rates are click/load and chat/load per variant; p-values compare A vs B.
     """
     loaded = actions[actions["action_type"] == "CHAT_BOX_ENTRY_LOADED"]
@@ -142,7 +142,7 @@ def compute_load_funnel_metric(
     ]
 
     def _n(df: pd.DataFrame, variant: str) -> int:
-        return int(df[df["variant"] == variant]["utid"].nunique())
+        return int(df[df["variant"] == variant]["session_id"].nunique())
 
     load_a, load_b = _n(loaded, "A"), _n(loaded, "B")
     click_a, click_b = _n(clicked, "A"), _n(clicked, "B")

@@ -25,7 +25,7 @@ def setup(fixtures_dir: Path):
     bundle = load_data(fixtures_dir)
     _, excluded = build_variant_lookup(bundle.ots_chat)
     pop = compute_variant_population(bundle.ots_chat, excluded)
-    chat = bundle.ots_chat[~bundle.ots_chat["utid"].isin(excluded)]
+    chat = bundle.ots_chat[~bundle.ots_chat["session_id"].isin(excluded)]
     return chat, pop
 
 
@@ -42,22 +42,22 @@ def test_engagement_metric_count_correct(setup) -> None:
     assert len(metrics) == 8
 
 
-def test_engagement_suggestions_per_utid(setup) -> None:
+def test_engagement_suggestions_per_session_id(setup) -> None:
     """A: {u1, u2}=2/2=1.0; B: {u3, u4, u5}=3/4=0.75."""
     chat, pop = setup
     metrics = compute_engagement_metrics(chat, pop)
-    m = _find(metrics, "CHAT_TYPE_SUGGESTIONS", "utid")
+    m = _find(metrics, "CHAT_TYPE_SUGGESTIONS", "session_id")
     assert m.count_A == 2
     assert m.count_B == 3
     assert math.isclose(m.value_A, 1.0)
     assert math.isclose(m.value_B, 0.75)
 
 
-def test_engagement_intent_per_utid(setup) -> None:
+def test_engagement_intent_per_session_id(setup) -> None:
     """A: {u1}=1/2=0.5; B: {u3, u4, u6}=3/4=0.75."""
     chat, pop = setup
     metrics = compute_engagement_metrics(chat, pop)
-    m = _find(metrics, "CHAT_TYPE_INTENT_RECOGNITION", "utid")
+    m = _find(metrics, "CHAT_TYPE_INTENT_RECOGNITION", "session_id")
     assert m.count_A == 1
     assert m.count_B == 3
     assert math.isclose(m.value_A, 0.5)
@@ -105,11 +105,11 @@ def test_engagement_trends_abs(setup) -> None:
     abs_chart, _ratio = compute_engagement_trends(chat)
     assert abs_chart.chart_id == "engagement_abs"
 
-    utid = abs_chart.utid_panel
+    session_id = abs_chart.session_id_panel
     # 2026-04-10: A=1 (u1), B=1 (u3); 2026-04-11: B=2 (u4, u6); A absent.
-    apr10_a = utid[(utid["dt"] == pd.Timestamp("2026-04-10")) & (utid["variant"] == "A")]
-    apr10_b = utid[(utid["dt"] == pd.Timestamp("2026-04-10")) & (utid["variant"] == "B")]
-    apr11_b = utid[(utid["dt"] == pd.Timestamp("2026-04-11")) & (utid["variant"] == "B")]
+    apr10_a = session_id[(session_id["dt"] == pd.Timestamp("2026-04-10")) & (session_id["variant"] == "A")]
+    apr10_b = session_id[(session_id["dt"] == pd.Timestamp("2026-04-10")) & (session_id["variant"] == "B")]
+    apr11_b = session_id[(session_id["dt"] == pd.Timestamp("2026-04-11")) & (session_id["variant"] == "B")]
     assert apr10_a["value"].iloc[0] == 1
     assert apr10_b["value"].iloc[0] == 1
     assert apr11_b["value"].iloc[0] == 2
@@ -124,13 +124,13 @@ def test_engagement_trends_ratio(setup) -> None:
     _abs, ratio_chart = compute_engagement_trends(chat)
     assert ratio_chart.chart_id == "engagement_ratio"
 
-    utid = ratio_chart.utid_panel
-    # 2026-04-10 A: INTENT_utids={u1}=1, SUGG_utids={u1, u2}=2 → 0.5.
-    row = utid[(utid["dt"] == pd.Timestamp("2026-04-10")) & (utid["variant"] == "A")]
+    session_id = ratio_chart.session_id_panel
+    # 2026-04-10 A: INTENT_session_ids={u1}=1, SUGG_session_ids={u1, u2}=2 → 0.5.
+    row = session_id[(session_id["dt"] == pd.Timestamp("2026-04-10")) & (session_id["variant"] == "A")]
     assert math.isclose(row["value"].iloc[0], 0.5)
 
-    # 2026-04-11 B: INTENT_utids={u4, u6}=2, SUGG_utids={u4}=1 → 2.0.
-    row = utid[(utid["dt"] == pd.Timestamp("2026-04-11")) & (utid["variant"] == "B")]
+    # 2026-04-11 B: INTENT_session_ids={u4, u6}=2, SUGG_session_ids={u4}=1 → 2.0.
+    row = session_id[(session_id["dt"] == pd.Timestamp("2026-04-11")) & (session_id["variant"] == "B")]
     assert math.isclose(row["value"].iloc[0], 2.0)
 
     # Session panel uses SUGGESTIONS row count as denominator.

@@ -11,8 +11,8 @@
 <h3>Block 1: Per-entrance CTR &amp; redirect rate</h3>
 <p class="muted">
   Descriptive ranking of the {{ section.entrance_names|length }} entrances. <br>
-  CTR = clicked utids / loaded utids. <br>
-  Chat users = loaded utids with <code>CHAT_TYPE_INTENT_RECOGNITION</code> in ots_chat. <br>
+  CTR = clicked session_ids / loaded session_ids. <br>
+  Chat users = loaded session_ids with <code>CHAT_TYPE_INTENT_RECOGNITION</code> in ots_chat. <br>
   Chat rate = chat users / loaded users. <br>
   Redirect rate = redirected users / clickers (or chat users).
 </p>
@@ -51,8 +51,8 @@
 
 <h3>Block 2: Native Feature Usage by Variant Group (A vs B)</h3>
 <p class="muted">
-  A group: utids who loaded <em>inline</em> or <em>map</em> only (not filter / search summary).<br>
-  B group: utids who loaded <em>filter</em> or <em>search summary</em> only (not inline / map).<br>
+  A group: session_ids who loaded <em>inline</em> or <em>map</em> only (not filter / search summary).<br>
+  B group: session_ids who loaded <em>filter</em> or <em>search summary</em> only (not inline / map).<br>
   Overlap between groups is excluded as dirty data.
 </p>
 <table style="width:auto">
@@ -122,7 +122,7 @@
 
 <h3>Block 3: Native Feature Usage by Entrance</h3>
 <p class="muted">
-  For each entrance, % of its loaded utids who fired the native action at
+  For each entrance, % of its loaded session_ids who fired the native action at
   least once. Compares {{ section.entrance_names|length }} entrances side-by-side; per-column denominator
   (loader-set size) shown in the header.
 </p>
@@ -166,7 +166,7 @@
 
 <h3>Block 4: With vs Without Each Entrance (Active Users Only)</h3>
 <p class="muted">
-  Population restricted to <strong>active utids</strong> — those who
+  Population restricted to <strong>active session_ids</strong> — those who
   triggered at least one native event (FILTERS_USED, SORT_USED, MAP_*,
   HOTEL_CARD_CLICKED). This filters out passively-loaded users (e.g. B-group
   users whose filter sidebar auto-loaded but who never interacted), so the
@@ -174,7 +174,7 @@
   exposure-mechanism asymmetry.
   <br><br>
   For each entrance, compare the relevant native-event rates among active
-  utids who <em>loaded that entrance</em> vs active utids who <em>did not
+  session_ids who <em>loaded that entrance</em> vs active session_ids who <em>did not
   load it</em> (but did load some other entrance — i.e. saw the chat-box
   elsewhere). Δ&nbsp;=&nbsp;loaded&nbsp;rate&nbsp;−&nbsp;not-loaded&nbsp;rate.
 </p>

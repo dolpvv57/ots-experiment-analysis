@@ -1,7 +1,7 @@
 """Per-entrance position analysis for the ai-filter-entrance experiment.
 
-Population: utids in actions.csv with at least one CHAT_BOX_ENTRY_LOADED,
-after removing variant-conflict utids.
+Population: session_ids in actions.csv with at least one CHAT_BOX_ENTRY_LOADED,
+after removing variant-conflict session_ids.
 
 All blocks are variant-agnostic — every metric is sliced by entrance
 (loaded_area), not by A/B. The 4 entrance loader populations overlap:
@@ -10,7 +10,7 @@ is a within-entrance rate.
 
 Block 1 — per-entrance CTR & redirect rate (4 entrances, descriptive).
 Block 2 — native-feature usage rate, one cell per entrance (5 events × 4 entrances).
-Block 2 add-on — loaded vs not-loaded comparison among active utids
+Block 2 add-on — loaded vs not-loaded comparison among active session_ids
                  (4 tables, one per entrance).
 """
 
@@ -103,24 +103,24 @@ def _parse_field(payload: object, key: str) -> str | None:
 def compute(
     data_dir: Path,
     redirects_df: pd.DataFrame,
-    excluded_utids: set[str],
+    excluded_session_ids: set[str],
 ) -> EntranceSection:
     actions = pd.read_csv(
         data_dir / "actions.csv",
         usecols=[
-            "utid", "action_type",
+            "session_id", "action_type",
             "chat_box_entry_loaded", "chat_box_entry_click",
             "traffic_source",
         ],
         dtype={
-            "utid": "string",
+            "session_id": "string",
             "action_type": "category",
             "chat_box_entry_loaded": "string",
             "chat_box_entry_click": "string",
             "traffic_source": "string",
         },
     )
-    actions = actions[~actions["utid"].isin(excluded_utids)]
+    actions = actions[~actions["session_id"].isin(excluded_session_ids)]
 
     loaded_rows = actions[actions["action_type"] == _LOADED_ACTION].copy()
     click_rows = actions[actions["action_type"] == _CLICK_ACTION].copy()
@@ -132,17 +132,17 @@ def compute(
         lambda s: _parse_field(s, "open_chat_box_area")
     )
 
-    redirected_utids: set[str] = set(redirects_df["utid"].dropna())
+    redirected_session_ids: set[str] = set(redirects_df["session_id"].dropna())
 
     ots_chat_early = pd.read_csv(
         data_dir / "ots_chat.csv",
-        usecols=["utid", "chat_type"],
-        dtype={"utid": "string", "chat_type": "string"},
+        usecols=["session_id", "chat_type"],
+        dtype={"session_id": "string", "chat_type": "string"},
     )
-    ots_chat_early = ots_chat_early[~ots_chat_early["utid"].isin(excluded_utids)]
-    intent_utids: set[str] = set(
+    ots_chat_early = ots_chat_early[~ots_chat_early["session_id"].isin(excluded_session_ids)]
+    intent_session_ids: set[str] = set(
         ots_chat_early.loc[
-            ots_chat_early["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION", "utid"
+            ots_chat_early["chat_type"] == "CHAT_TYPE_INTENT_RECOGNITION", "session_id"
         ].dropna()
     )
 
@@ -162,8 +162,8 @@ def compute(
             loaded_mask = loaded_mask & ~loaded_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
             click_mask = click_mask & ~click_rows["traffic_source"].isin(_PS_TRAFFIC_SOURCES)
 
-        loaded_users_by_entrance[entrance] = set(loaded_rows.loc[loaded_mask, "utid"].dropna())
-        clicked_users_by_entrance[entrance] = set(click_rows.loc[click_mask, "utid"].dropna())
+        loaded_users_by_entrance[entrance] = set(loaded_rows.loc[loaded_mask, "session_id"].dropna())
+        clicked_users_by_entrance[entrance] = set(click_rows.loc[click_mask, "session_id"].dropna())
 
     entrance_loaders: dict[str, int] = {
         e: len(loaded_users_by_entrance[e]) for e in _ENTRANCE_NAMES
@@ -178,16 +178,16 @@ def compute(
         clicked_in_loaded = clicked_users & loaded_users
         ctr = len(clicked_in_loaded) / len(loaded_users) if loaded_users else float("nan")
 
-        chat_users_set = loaded_users & intent_utids
+        chat_users_set = loaded_users & intent_session_ids
         chat_rate = len(chat_users_set) / len(loaded_users) if loaded_users else float("nan")
 
-        redirected_clickers = clicked_in_loaded & redirected_utids
+        redirected_clickers = clicked_in_loaded & redirected_session_ids
         rr = (
             len(redirected_clickers) / len(clicked_in_loaded)
             if clicked_in_loaded else float("nan")
         )
 
-        redirected_chat = chat_users_set & redirected_utids
+        redirected_chat = chat_users_set & redirected_session_ids
         rr_chat = (
             len(redirected_chat) / len(chat_users_set)
             if chat_users_set else float("nan")
@@ -212,7 +212,7 @@ def compute(
 
     for event in _NATIVE_EVENTS:
         event_users: set[str] = set(
-            actions.loc[actions["action_type"] == event, "utid"].dropna()
+            actions.loc[actions["action_type"] == event, "session_id"].dropna()
         )
         cells_block2: dict[str, PerEntranceCell] = {}
         for entrance in _ENTRANCE_NAMES:
@@ -221,7 +221,7 @@ def compute(
             cells_block2[entrance] = _cell(
                 num=len(native_users),
                 den=len(loaded),
-                redirect_num=len(native_users & redirected_utids),
+                redirect_num=len(native_users & redirected_session_ids),
             )
         native_event_rates.append(PerEntranceEventRow(
             event=event,
@@ -230,31 +230,31 @@ def compute(
 
     # ---- block 2 add-on: per-entrance "loaded vs not loaded" impact tables ----
     #
-    # Population is restricted to ACTIVE utids — those who triggered at least
+    # Population is restricted to ACTIVE session_ids — those who triggered at least
     # one of the 5 native events. This filters out passively-loaded users
     # (e.g. B-group users whose filter sidebar auto-loaded but who never
     # interacted with the page), so the loaded-vs-not-loaded comparison
     # reflects entrance position, not exposure-mechanism asymmetry.
     #
-    # "all_loaded" = utids who loaded any of the 4 known entrances. Both
+    # "all_loaded" = session_ids who loaded any of the 4 known entrances. Both
     # subsets are then intersected with the active set.
     all_loaded: set[str] = set()
     for s in loaded_users_by_entrance.values():
         all_loaded |= s
 
-    active_utids: set[str] = set()
+    active_session_ids: set[str] = set()
     event_users_cache: dict[str, set[str]] = {}
     for event in _NATIVE_EVENTS:
         ev_users = set(
-            actions.loc[actions["action_type"] == event, "utid"].dropna()
+            actions.loc[actions["action_type"] == event, "session_id"].dropna()
         )
         event_users_cache[event] = ev_users
-        active_utids |= ev_users
+        active_session_ids |= ev_users
 
     impact_tables: list[EntranceImpactTable] = []
     for entrance in _ENTRANCE_NAMES:
-        loaded = loaded_users_by_entrance[entrance] & active_utids
-        not_loaded = (all_loaded - loaded_users_by_entrance[entrance]) & active_utids
+        loaded = loaded_users_by_entrance[entrance] & active_session_ids
+        not_loaded = (all_loaded - loaded_users_by_entrance[entrance]) & active_session_ids
         loaded_n = len(loaded)
         not_loaded_n = len(not_loaded)
 
@@ -267,8 +267,8 @@ def compute(
             not_loaded_rate = (
                 not_loaded_hit / not_loaded_n if not_loaded_n > 0 else float("nan")
             )
-            loaded_redirect = len(loaded & event_users & redirected_utids)
-            not_loaded_redirect = len(not_loaded & event_users & redirected_utids)
+            loaded_redirect = len(loaded & event_users & redirected_session_ids)
+            not_loaded_redirect = len(not_loaded & event_users & redirected_session_ids)
             loaded_redirect_rate = loaded_redirect / loaded_hit if loaded_hit > 0 else float("nan")
             not_loaded_redirect_rate = not_loaded_redirect / not_loaded_hit if not_loaded_hit > 0 else float("nan")
             rows.append(EntranceImpactRow(
@@ -294,8 +294,8 @@ def compute(
 
     # ---- block 2 A/B table: native-event rates by variant group ----
     #
-    # A group: utids who loaded inline or map, but NOT filter or search summary.
-    # B group: utids who loaded filter or search summary, but NOT inline or map.
+    # A group: session_ids who loaded inline or map, but NOT filter or search summary.
+    # B group: session_ids who loaded filter or search summary, but NOT inline or map.
     # Overlap (dirty data) is excluded from both groups.
     ab_group_a = (
         loaded_users_by_entrance["inline"] | loaded_users_by_entrance["map"]
@@ -311,30 +311,30 @@ def compute(
     ) - (
         loaded_users_by_entrance["inline"] | loaded_users_by_entrance["map"]
     )
-    # All utids per variant (full population, for the "all users" columns)
+    # All session_ids per variant (full population, for the "all users" columns)
     ots_chat = pd.read_csv(
         data_dir / "ots_chat.csv",
-        usecols=["utid", "variant"],
-        dtype={"utid": "string", "variant": "string"},
+        usecols=["session_id", "variant"],
+        dtype={"session_id": "string", "variant": "string"},
     )
-    ots_chat = ots_chat[~ots_chat["utid"].isin(excluded_utids)]
-    all_a_utids = set(ots_chat.loc[ots_chat["variant"] == "A", "utid"].dropna())
-    all_b_utids = set(ots_chat.loc[ots_chat["variant"] == "B", "utid"].dropna())
+    ots_chat = ots_chat[~ots_chat["session_id"].isin(excluded_session_ids)]
+    all_a_session_ids = set(ots_chat.loc[ots_chat["variant"] == "A", "session_id"].dropna())
+    all_b_session_ids = set(ots_chat.loc[ots_chat["variant"] == "B", "session_id"].dropna())
 
     ab_group_sizes = {
         "A": len(ab_group_a),
         "B": len(ab_group_b),
-        "A_all": len(all_a_utids),
-        "B_all": len(all_b_utids),
+        "A_all": len(all_a_session_ids),
+        "B_all": len(all_b_session_ids),
     }
 
     native_event_ab_rates: list[PerEntranceEventRow] = []
     for event in _NATIVE_EVENTS:
         ev_users = event_users_cache[event]
-        num_a_all = len(all_a_utids & ev_users)
-        den_a_all = len(all_a_utids)
-        num_b_all = len(all_b_utids & ev_users)
-        den_b_all = len(all_b_utids)
+        num_a_all = len(all_a_session_ids & ev_users)
+        den_a_all = len(all_a_session_ids)
+        num_b_all = len(all_b_session_ids & ev_users)
+        den_b_all = len(all_b_session_ids)
         stat = two_proportion_z_test(num_a_all, den_a_all, num_b_all, den_b_all)
         rate_a_all = num_a_all / den_a_all if den_a_all > 0 else float("nan")
         rate_b_all = num_b_all / den_b_all if den_b_all > 0 else float("nan")

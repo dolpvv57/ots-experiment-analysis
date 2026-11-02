@@ -98,8 +98,8 @@
   <thead>
     <tr>
       <th>Variant</th>
-      <th>Distinct utids in chat (backend)</th>
-      <th>Distinct utids in actions (frontend)</th>
+      <th>Distinct session_ids in chat (backend)</th>
+      <th>Distinct session_ids in actions (frontend)</th>
     </tr>
   </thead>
   <tbody>
@@ -116,8 +116,8 @@
   </tbody>
 </table>
 </div>
-{% if ctx.excluded_utids_count > 0 %}
-<p class="muted">{{ ctx.excluded_utids_count }} utid(s) excluded due to in-file variant conflict.</p>
+{% if ctx.excluded_session_ids_count > 0 %}
+<p class="muted">{{ ctx.excluded_session_ids_count }} session_id(s) excluded due to in-file variant conflict.</p>
 {% endif %}
 </section>
 
@@ -143,7 +143,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for dim in ["utid", "chat_session_id", "request_id", "correlation_id"] %}
+    {% for dim in ["session_id", "chat_session_id", "request_id", "correlation_id"] %}
     {% set intent = _intent_map[dim] %}
     {% set blank = (dim == "chat_session_id") %}
     <tr>
@@ -223,9 +223,9 @@
   </tbody>
 </table>
 <dl class="muted" style="margin:8px 0 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 12px; font-size:13px;">
-  <dt><strong>Load</strong></dt><dd>Distinct utids with CHAT_BOX_ENTRY_LOADED in actions.csv.</dd>
-  <dt><strong>Click</strong></dt><dd>Distinct utids with CHAT_BOX_ENTRY_CLICK / load utids.</dd>
-  <dt><strong>Chat</strong></dt><dd>Distinct utids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat / load utids.</dd>
+  <dt><strong>Load</strong></dt><dd>Distinct session_ids with CHAT_BOX_ENTRY_LOADED in actions.csv.</dd>
+  <dt><strong>Click</strong></dt><dd>Distinct session_ids with CHAT_BOX_ENTRY_CLICK / load session_ids.</dd>
+  <dt><strong>Chat</strong></dt><dd>Distinct session_ids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat / load session_ids.</dd>
 </dl>
 {% else %}
 <p class="muted"><em>actions.csv not loaded — funnel unavailable.</em></p>
@@ -236,7 +236,7 @@
 <section id="redirect">
 <h2>Redirect Analysis</h2>
 <p class="muted">
-  Redirect count: distinct dimension values matched to a redirect via (utid, correlation_id ↔ pre_redirect_id).<br>
+  Redirect count: distinct dimension values matched to a redirect via (session_id, correlation_id ↔ pre_redirect_id).<br>
   p-value: two-proportion z-test (α = 0.05).
 </p>
 
@@ -329,9 +329,9 @@
 
 <h3>Methodology</h3>
 <ul>
-  <li><strong>Engagement rate (Block 1):</strong> per-dimension distinct INTENT_RECOGNITION count / per-dimension distinct count across all chat (SUGGESTIONS + INTENT). E.g. for utid, the rate is the share of users who had at least one INTENT_RECOGNITION row.</li>
+  <li><strong>Engagement rate (Block 1):</strong> per-dimension distinct INTENT_RECOGNITION count / per-dimension distinct count across all chat (SUGGESTIONS + INTENT). E.g. for session_id, the rate is the share of users who had at least one INTENT_RECOGNITION row.</li>
   <li><strong>Rounds per session (Block 2):</strong> per INTENT_RECOGNITION session, the maximum <code>rounds</code> value is taken as the session depth. Mean and median are compared across variants; significance is assessed with Welch's t-test.</li>
-  <li><strong>Frontend funnel (Block 3):</strong> denominator is distinct utids with <code>CHAT_BOX_ENTRY_LOADED</code> in actions.csv. Click rate = ENTRY_CLICK utids / load utids; chat rate = INTENT_RECOGNITION utids (from ots_chat) / load utids.</li>
+  <li><strong>Frontend funnel (Block 3):</strong> denominator is distinct session_ids with <code>CHAT_BOX_ENTRY_LOADED</code> in actions.csv. Click rate = ENTRY_CLICK session_ids / load session_ids; chat rate = INTENT_RECOGNITION session_ids (from ots_chat) / load session_ids.</li>
   <li><strong>Redirect attribution:</strong> a chat row is "redirected" iff its <code>correlation_id</code> appears in <code>redirects.pre_redirect_id</code>. SUGGESTIONS rows are excluded from the intent-only table.</li>
   <li><strong>Statistical tests:</strong> two-proportion z-test for all rate metrics; Welch's t-test for rounds mean. α = {{ ctx.alpha }}. Two-sided. "significant" iff p &lt; {{ ctx.alpha }}.</li>
 </ul>
@@ -346,10 +346,10 @@
 
 <h3>Excluded data</h3>
 <p>
-  {% if ctx.excluded_utids_count == 0 %}
-    No utids excluded.
+  {% if ctx.excluded_session_ids_count == 0 %}
+    No session_ids excluded.
   {% else %}
-    {{ ctx.excluded_utids_count }} utid(s) excluded due to in-file variant conflict in ots_chat.csv.
+    {{ ctx.excluded_session_ids_count }} session_id(s) excluded due to in-file variant conflict in ots_chat.csv.
   {% endif %}
 </p>
 

@@ -8,7 +8,7 @@ inheritance required.  Every ``plugin.py`` must expose:
         Path to the Jinja2 section template, relative to the plugin file's
         directory (e.g. ``"templates/section.html.j2"``).
 
-    def compute(bundle: DataBundle, excluded_utids: set[str]) -> Any
+    def compute(bundle: DataBundle, excluded_session_ids: set[str]) -> Any
         Run the experiment-specific analysis and return a section dataclass.
         Use ``bundle.data_dir`` to load extra CSV files (e.g. actions.csv).
 

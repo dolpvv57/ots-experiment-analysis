@@ -95,38 +95,38 @@ def _rate_metric(
 # Plugin interface
 # ---------------------------------------------------------------------------
 
-def compute(bundle: DataBundle, excluded_utids: set[str]) -> MapSection:
+def compute(bundle: DataBundle, excluded_session_ids: set[str]) -> MapSection:
     actions = pd.read_csv(
         bundle.data_dir / "actions.csv",
-        usecols=["utid", "variant", "action_type"],
-        dtype={"utid": "string", "variant": "category", "action_type": "category"},
+        usecols=["session_id", "variant", "action_type"],
+        dtype={"session_id": "string", "variant": "category", "action_type": "category"},
     )
-    actions = actions[~actions["utid"].isin(excluded_utids)]
+    actions = actions[~actions["session_id"].isin(excluded_session_ids)]
 
-    loaded_utids: set[str] = set(
-        actions.loc[actions["action_type"] == _LOADED_ACTION, "utid"].dropna()
+    loaded_session_ids: set[str] = set(
+        actions.loc[actions["action_type"] == _LOADED_ACTION, "session_id"].dropna()
     )
 
     variant_lookup: pd.Series = (
-        actions[actions["utid"].isin(loaded_utids)]
-        .drop_duplicates("utid")[["utid", "variant"]]
-        .set_index("utid")["variant"]
+        actions[actions["session_id"].isin(loaded_session_ids)]
+        .drop_duplicates("session_id")[["session_id", "variant"]]
+        .set_index("session_id")["variant"]
         .astype("string")
     )
     pop_a = int((variant_lookup == "A").sum())
     pop_b = int((variant_lookup == "B").sum())
 
     map_rows = actions[
-        actions["utid"].isin(loaded_utids)
+        actions["session_id"].isin(loaded_session_ids)
         & actions["action_type"].isin(_MAP_ACTIONS)
     ].copy()
-    map_rows["v"] = map_rows["utid"].map(variant_lookup)
+    map_rows["v"] = map_rows["session_id"].map(variant_lookup)
 
     def _users_with(action_type: str, variant: str) -> set[str]:
         return set(
             map_rows.loc[
                 (map_rows["action_type"] == action_type) & (map_rows["v"] == variant),
-                "utid",
+                "session_id",
             ]
         )
 
@@ -143,7 +143,7 @@ def compute(bundle: DataBundle, excluded_utids: set[str]) -> MapSection:
         _rate_metric("Any map action", len(any_a), pop_a, len(any_b), pop_b),
     ]
 
-    redirected_utids: set[str] = set(bundle.redirects["utid"].dropna())
+    redirected_session_ids: set[str] = set(bundle.redirects["session_id"].dropna())
     loaded_a: set[str] = set(variant_lookup[variant_lookup == "A"].index)
     loaded_b: set[str] = set(variant_lookup[variant_lookup == "B"].index)
     non_map_a = loaded_a - any_a
@@ -152,8 +152,8 @@ def compute(bundle: DataBundle, excluded_utids: set[str]) -> MapSection:
     def _funnel(label: str, users_a: set[str], users_b: set[str]) -> MapRateMetric:
         return _rate_metric(
             label,
-            len(users_a & redirected_utids), len(users_a),
-            len(users_b & redirected_utids), len(users_b),
+            len(users_a & redirected_session_ids), len(users_a),
+            len(users_b & redirected_session_ids), len(users_b),
         )
 
     funnel = [
