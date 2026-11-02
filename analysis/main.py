@@ -32,6 +32,7 @@ from analysis.render import (
 )
 
 DEFAULT_EXPERIMENT = "ai-filter-entrance"
+EXPERIMENTS_DIR = "experiments"
 
 
 def _now() -> float:
@@ -52,8 +53,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--experiment",
         default=DEFAULT_EXPERIMENT,
-        help="Experiment directory name under the project root (default: %(default)s). "
-        "Data is read from <experiment>/data/, report written to <experiment>/output/report.html.",
+        help="Experiment directory name under experiments/ (default: %(default)s). "
+        "Data is read from experiments/<experiment>/data/, report written to "
+        "experiments/<experiment>/output/report.html.",
     )
     parser.add_argument(
         "--data-dir",
@@ -84,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     stats_module.ALPHA = args.alpha
     stats_module.FLAT_THRESHOLD_PCT = args.flat_threshold
 
-    experiment_root = Path(args.experiment)
+    experiment_root = Path(EXPERIMENTS_DIR) / args.experiment
     data_dir = Path(args.data_dir) if args.data_dir else experiment_root / "data"
     output_path = (
         Path(args.output) if args.output else experiment_root / "output" / "report.html"

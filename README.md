@@ -23,19 +23,20 @@ analyze-experiment/
 │   └── templates/
 │       └── report.html.j2       # Main report template (engagement + redirect)
 │
-├── chat-box-auto-open/          # Example experiment directory (with plugin)
-│   ├── data/                    # ots_chat.csv, redirects.csv, actions.csv
-│   ├── output/                  # report.html (generated after running)
-│   ├── plugin.py                # Experiment-specific analysis
-│   └── templates/
-│       └── section.html.j2      # Experiment-specific report section
-│
-├── ai-filter-entrance/          # Example experiment directory (with plugin)
-│   ├── data/
-│   ├── output/
-│   ├── plugin.py                # Experiment-specific analysis
-│   └── templates/
-│       └── section.html.j2
+├── experiments/
+│   ├── chat-box-auto-open/      # Example experiment directory (with plugin)
+│   │   ├── data/                # ots_chat.csv, redirects.csv, actions.csv
+│   │   ├── output/              # report.html (generated after running)
+│   │   ├── plugin.py            # Experiment-specific analysis
+│   │   └── templates/
+│   │       └── section.html.j2  # Experiment-specific report section
+│   │
+│   └── ai-filter-entrance/      # Example experiment directory (with plugin)
+│       ├── data/
+│       ├── output/
+│       ├── plugin.py            # Experiment-specific analysis
+│       └── templates/
+│           └── section.html.j2
 │
 ├── tests/                       # Unit tests (cover the shared framework)
 └── requirements.txt
@@ -67,10 +68,10 @@ python -m analysis.main --experiment chat-box-auto-open --verbose
 **3. View the report**
 
 ```bash
-open <experiment-name>/output/report.html   # macOS
+open experiments/<experiment-name>/output/report.html   # macOS
 ```
 
-The report is written to `<experiment-name>/output/report.html`. 
+The report is written to `experiments/<experiment-name>/output/report.html`. 
 The output directory is created automatically if it does not exist.
 
 
@@ -78,9 +79,9 @@ The output directory is created automatically if it does not exist.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--experiment` | `ai-filter-entrance` | Experiment directory name; data/output paths are derived from this |
-| `--data-dir` | `<experiment>/data` | Override the input CSV directory |
-| `--output` | `<experiment>/output/report.html` | Override the report output path |
+| `--experiment` | `ai-filter-entrance` | Experiment directory name under `experiments/`; data/output paths are derived from this |
+| `--data-dir` | `experiments/<experiment>/data` | Override the input CSV directory |
+| `--output` | `experiments/<experiment>/output/report.html` | Override the report output path |
 | `--flat-threshold` | `2.0` | Relative lifts below this percentage (absolute) are treated as "flat" |
 | `--alpha` | `0.05` | Statistical significance threshold |
 | `--verbose` | off | Print timing for each stage to stderr |
@@ -113,13 +114,13 @@ Every report includes:
 
 ## Adding a New Experiment (Developer Guide)
 
-To add a new experiment, create files in your own directory. 
+To add a new experiment, create a directory under `experiments/`. 
 Do not modify any code under `analysis/`.
 
 ### Minimum structure
 
 ```
-<your-experiment>/
+experiments/<your-experiment>/
 ├── data/
 │   ├── ots_chat.csv
 │   ├── redirects.csv
@@ -178,7 +179,7 @@ All Jinja2 filters from the main template are available: `fmt_pct`, `fmt_pp`, `f
 **Example: minimal plugin**
 
 ```python
-# my-experiment/plugin.py
+# experiments/my-experiment/plugin.py
 from dataclasses import dataclass
 from analysis.load import DataBundle
 
@@ -197,7 +198,7 @@ def count_tests(section: MySection) -> int:
 ```
 
 ```jinja2
-{# my-experiment/templates/section.html.j2 #}
+{# experiments/my-experiment/templates/section.html.j2 #}
 <section id="my-section">
 <h2>My Custom Analysis</h2>
 <p>Total actions: {{ section.total_actions }}</p>
