@@ -13,6 +13,7 @@ from analysis.engagement import (
     compute_engagement_metrics,
     compute_load_funnel_metric,
     compute_rounds_metric,
+    split_by_traffic_source,
 )
 from analysis.load import (
     build_variant_lookup,
@@ -140,16 +141,24 @@ def main(argv: list[str] | None = None) -> int:
         t0 = _now()
         eng_metrics = compute_engagement_metrics(chat, pop)
         rounds_metric = compute_rounds_metric(chat)
-        load_funnel = (
-            compute_load_funnel_metric(bundle.actions, chat)
-            if bundle.actions is not None
-            else None
-        )
+        if bundle.actions is not None:
+            load_funnel = compute_load_funnel_metric(bundle.actions, chat)
+            (parallel_actions, parallel_chat), (non_parallel_actions, non_parallel_chat) = (
+                split_by_traffic_source(bundle.actions, chat)
+            )
+            load_funnel_parallel = compute_load_funnel_metric(parallel_actions, parallel_chat)
+            load_funnel_non_parallel = compute_load_funnel_metric(
+                non_parallel_actions, non_parallel_chat
+            )
+        else:
+            load_funnel = None
+            load_funnel_parallel = None
+            load_funnel_non_parallel = None
         _stage(
             args.verbose,
             "engage",
             f"{len(eng_metrics)} engagement metrics + rounds metric"
-            + (" + load funnel" if load_funnel else ""),
+            + (" + load funnel (+ parallel/non-parallel split)" if load_funnel else ""),
             t0,
         )
 
@@ -212,6 +221,8 @@ def main(argv: list[str] | None = None) -> int:
             engagement_metrics=eng_metrics,
             rounds_metric=rounds_metric,
             load_funnel_metric=load_funnel,
+            load_funnel_parallel=load_funnel_parallel,
+            load_funnel_non_parallel=load_funnel_non_parallel,
             redirect_metrics_all=red_metrics_all,
             redirect_metrics_intent=red_metrics_intent,
             redirect_funnel_metric=funnel,

@@ -1,0 +1,9 @@
+dt,session_id,variant,action_type,traffic_source
+2026-04-10,u1,A,CHAT_BOX_ENTRY_LOADED,parallel_search
+2026-04-10,u1,A,CHAT_BOX_ENTRY_CLICK,parallel_search
+2026-04-10,u2,A,CHAT_BOX_ENTRY_LOADED,seo
+2026-04-10,u3,B,CHAT_BOX_ENTRY_LOADED,parallel_search
+2026-04-10,u3,B,CHAT_BOX_ENTRY_CLICK,parallel_search
+2026-04-11,u4,B,CHAT_BOX_ENTRY_LOADED,seo
+2026-04-11,u4,B,CHAT_BOX_ENTRY_CLICK,seo
+2026-04-10,u5,B,CHAT_BOX_ENTRY_LOADED,parallel_search

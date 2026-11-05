@@ -124,6 +124,34 @@ def compute_rounds_metric(chat_with_variant: pd.DataFrame) -> RoundsMetric:
     )
 
 
+def split_by_traffic_source(
+    actions: pd.DataFrame, chat_with_variant: pd.DataFrame
+) -> tuple[tuple[pd.DataFrame, pd.DataFrame], tuple[pd.DataFrame, pd.DataFrame]]:
+    """Partition (actions, chat) into parallel-search / non-parallel-search subsets.
+
+    A session belongs to "parallel search" iff it has at least one
+    CHAT_BOX_ENTRY_LOADED row with traffic_source == "parallel_search"; all other
+    sessions that loaded at least once fall into "non-parallel search". Sessions
+    with no CHAT_BOX_ENTRY_LOADED row at all belong to neither group.
+
+    Raises ValueError if `actions` has no `traffic_source` column.
+    """
+    if "traffic_source" not in actions.columns:
+        raise ValueError("actions.csv is missing the required 'traffic_source' column")
+
+    loaded = actions[actions["action_type"] == "CHAT_BOX_ENTRY_LOADED"]
+    parallel_ids = set(loaded.loc[loaded["traffic_source"] == "parallel_search", "session_id"])
+    non_parallel_ids = set(loaded["session_id"]) - parallel_ids
+
+    def _subset(ids: set[str]) -> tuple[pd.DataFrame, pd.DataFrame]:
+        return (
+            actions[actions["session_id"].isin(ids)],
+            chat_with_variant[chat_with_variant["session_id"].isin(ids)],
+        )
+
+    return _subset(parallel_ids), _subset(non_parallel_ids)
+
+
 def compute_load_funnel_metric(
     actions: pd.DataFrame,
     chat_with_variant: pd.DataFrame,
