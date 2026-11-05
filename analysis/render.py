@@ -207,6 +207,8 @@ class ReportContext:
     engagement_metrics: list[EngagementMetric]
     rounds_metric: RoundsMetric
     load_funnel_metric: LoadFunnelMetric | None  # None if actions.csv absent
+    load_funnel_parallel: LoadFunnelMetric | None  # None if actions.csv absent
+    load_funnel_non_parallel: LoadFunnelMetric | None  # None if actions.csv absent
     redirect_metrics_all: list[RedirectMetric]
     redirect_metrics_intent: list[RedirectMetric]
     redirect_funnel_metric: RedirectFunnelMetric

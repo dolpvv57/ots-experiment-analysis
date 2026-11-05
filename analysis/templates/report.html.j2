@@ -183,8 +183,7 @@
 
 {# --- Block 3: Load → click / chat funnel --- #}
 <h3>Block 3: Frontend funnel: load → click → chat</h3>
-{% if ctx.load_funnel_metric %}
-{% set f = ctx.load_funnel_metric %}
+{% macro funnel_table(f) %}
 <table style="width:auto">
   <thead>
     <tr>
@@ -221,10 +220,21 @@
     </tr>
   </tbody>
 </table>
+{% endmacro %}
+{% if ctx.load_funnel_metric %}
+<h4>Combined</h4>
+{{ funnel_table(ctx.load_funnel_metric) }}
+<h4>Parallel search</h4>
+<p class="muted">Sessions with ≥1 CHAT_BOX_ENTRY_LOADED row where traffic_source = parallel_search.</p>
+{{ funnel_table(ctx.load_funnel_parallel) }}
+<h4>Non-parallel search</h4>
+<p class="muted">Sessions with ≥1 CHAT_BOX_ENTRY_LOADED row but no traffic_source = parallel_search row.</p>
+{{ funnel_table(ctx.load_funnel_non_parallel) }}
 <dl class="muted" style="margin:8px 0 0 0; display:grid; grid-template-columns:max-content 1fr; gap:2px 12px; font-size:13px;">
   <dt><strong>Load</strong></dt><dd>Distinct session_ids with CHAT_BOX_ENTRY_LOADED in actions.csv.</dd>
   <dt><strong>Click</strong></dt><dd>Distinct session_ids with CHAT_BOX_ENTRY_CLICK / load session_ids.</dd>
   <dt><strong>Chat</strong></dt><dd>Distinct session_ids with CHAT_TYPE_INTENT_RECOGNITION in ots_chat / load session_ids.</dd>
+  <dt><strong>Parallel / Non-parallel split</strong></dt><dd>Based on actions.csv traffic_source for each session's CHAT_BOX_ENTRY_LOADED row(s); a session with any such row equal to parallel_search is counted as parallel search.</dd>
 </dl>
 {% else %}
 <p class="muted"><em>actions.csv not loaded — funnel unavailable.</em></p>
